@@ -7,6 +7,8 @@ import com.nhavronskyi.progressmebackend.log.LogEntry;
 import com.nhavronskyi.progressmebackend.persona.Persona;
 import com.nhavronskyi.progressmebackend.value.UserValue;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -74,6 +76,7 @@ class SystemPromptBuilderTest {
         AiContext context = new AiContext(null, settings, List.of(), List.of(), List.of());
         String prompt = builder.build(context);
 
+        assertThat(prompt).contains("no-nonsense drill-sergeant coach");
         assertThat(prompt).contains("strict");
         assertThat(prompt).contains("8/10");
         assertThat(prompt).contains("Focus especially on: fitness, sleep");
@@ -100,6 +103,66 @@ class SystemPromptBuilderTest {
         String summary = builder.buildContextSummary(context);
 
         assertThat(summary).isEqualTo("1 entries, 1 values, 1 goals");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "gentle,  2, empathetic therapist",
+            "gentle,  5, supportive counselor",
+            "gentle,  9, caring but firm mentor",
+            "strict,  3, direct mentor",
+            "strict,  6, performance coach",
+            "strict, 10, no-nonsense drill-sergeant coach",
+            "analytical, 1, curious researcher",
+            "analytical, 7, data-driven analyst",
+            "analytical, 8, rigorous performance analyst",
+            "balanced,  4, friendly mentor",
+            "balanced,  5, personal growth coach",
+            "balanced,  8, accountability partner"
+    })
+    void resolveRoleMatchesToneAndStrictness(String tone, int strictness, String expectedRoleFragment) {
+        AiSettingsSnapshot settings = new AiSettingsSnapshot(tone, strictness, List.of(), List.of(), null, "en");
+        AiContext context = new AiContext(null, settings, List.of(), List.of(), List.of());
+        String prompt = builder.build(context);
+
+        assertThat(prompt).contains(expectedRoleFragment);
+    }
+
+    @Test
+    void unknownToneFallsBackToBalanced() {
+        AiSettingsSnapshot settings = new AiSettingsSnapshot("unknown_tone", 5, List.of(), List.of(), null, "en");
+        AiContext context = new AiContext(null, settings, List.of(), List.of(), List.of());
+        String prompt = builder.build(context);
+
+        assertThat(prompt).contains("personal growth coach");
+    }
+
+    @Test
+    void nullToneFallsBackToBalanced() {
+        AiSettingsSnapshot settings = new AiSettingsSnapshot(null, 5, List.of(), List.of(), null, "en");
+        AiContext context = new AiContext(null, settings, List.of(), List.of(), List.of());
+        String prompt = builder.build(context);
+
+        assertThat(prompt).contains("personal growth coach");
+    }
+
+    @Test
+    void roleIncludesBehavioralDirective() {
+        AiSettingsSnapshot settings = new AiSettingsSnapshot("strict", 10, List.of(), List.of(), null, "en");
+        AiContext context = new AiContext(null, settings, List.of(), List.of(), List.of());
+        String prompt = builder.build(context);
+
+        assertThat(prompt).contains("Be blunt and demanding");
+    }
+
+    @Test
+    void formattingRulesAlwaysPresent() {
+        AiSettingsSnapshot settings = new AiSettingsSnapshot("analytical", 1, List.of(), List.of(), null, "en");
+        AiContext context = new AiContext(null, settings, List.of(), List.of(), List.of());
+        String prompt = builder.build(context);
+
+        assertThat(prompt).contains("Response formatting rules");
+        assertThat(prompt).contains("ALWAYS use them");
     }
 
     private AiContext createFullContext() {
