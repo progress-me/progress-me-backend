@@ -25,6 +25,15 @@ spring:
             temperature: 0.7
             max-output-tokens: 4096
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
 server:
   port: 8080
 
