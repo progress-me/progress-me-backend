@@ -36,9 +36,9 @@ public class AiContextService {
 
         AiSettingsSnapshot settings = aiSettingsRepository.findByUserId(userId)
                 .map(s -> new AiSettingsSnapshot(
-                        s.getTone(), s.getStrictness(), s.getFocusAreas(),
+                        ResponseStyleResolver.TONE_OVERLAY.fromString(s.getTone()), s.getStrictness(), s.getFocusAreas(),
                         s.getIgnoreAreas(), s.getCustomInstructions(), s.getLanguage()))
-                .orElse(new AiSettingsSnapshot("balanced", 5, List.of(), List.of(), null, "en"));
+                .orElse(new AiSettingsSnapshot(ResponseStyleResolver.TONE_OVERLAY.BALANCED, 5, List.of(), List.of(), null, "en"));
 
         List<UserValue> values = valueRepository.findByUserIdOrderBySortOrderAsc(userId);
 
@@ -49,6 +49,6 @@ public class AiContextService {
                 PageRequest.of(0, properties.maxContextEntries(), Sort.by(Sort.Direction.DESC, "loggedAt"))
         ).getContent();
 
-        return new AiContext(persona, settings, values, activeGoals, recentEntries);
+        return new AiContext(persona, settings, values, activeGoals, recentEntries, ResponseStyleResolver.TYPE_STRUCTURE.ANALYSIS);
     }
 }

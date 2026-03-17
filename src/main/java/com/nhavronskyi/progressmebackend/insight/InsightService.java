@@ -1,7 +1,9 @@
 package com.nhavronskyi.progressmebackend.insight;
 
 import com.nhavronskyi.progressmebackend.ai.AiContextService;
+import com.nhavronskyi.progressmebackend.ai.ResponseStyleResolver;
 import com.nhavronskyi.progressmebackend.ai.SystemPromptBuilder;
+import com.nhavronskyi.progressmebackend.ai.ThinkingLevelResolver;
 import com.nhavronskyi.progressmebackend.ai.dto.AiContext;
 import com.nhavronskyi.progressmebackend.common.ResourceNotFoundException;
 import com.nhavronskyi.progressmebackend.insight.dto.AnalyzeRequest;
@@ -10,7 +12,11 @@ import com.nhavronskyi.progressmebackend.log.LogEntry;
 import com.nhavronskyi.progressmebackend.log.LogEntryRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AbstractMessage;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
+import org.springframework.ai.google.genai.GoogleGenAiChatOptions;
+import org.springframework.ai.google.genai.common.GoogleGenAiThinkingLevel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -30,6 +37,7 @@ public class InsightService {
     private final AiContextService contextService;
     private final ChatClient chatClient;
     private final SystemPromptBuilder promptBuilder;
+    private final ThinkingLevelResolver thinkingLevelResolver;
     private final String modelName;
 
     public InsightService(
@@ -38,31 +46,51 @@ public class InsightService {
             AiContextService contextService,
             ChatClient chatClient,
             SystemPromptBuilder promptBuilder,
+            ThinkingLevelResolver thinkingLevelResolver,
             @Value("${spring.ai.google.genai.chat.options.model}") String modelName) {
         this.repository = repository;
         this.logEntryRepository = logEntryRepository;
         this.contextService = contextService;
         this.chatClient = chatClient;
         this.promptBuilder = promptBuilder;
+        this.thinkingLevelResolver = thinkingLevelResolver;
         this.modelName = modelName;
     }
 
     @Transactional
     public InsightResponse analyze(UUID userId, AnalyzeRequest request) {
-        AiContext context = contextService.buildContext(userId);
+        ResponseStyleResolver.TYPE_STRUCTURE analysisType = ResponseStyleResolver.TYPE_STRUCTURE.fromString(request.resolvedType());
+        AiContext baseContext = contextService.buildContext(userId);
+        AiContext context = new AiContext(
+                baseContext.persona(),
+                baseContext.aiSettings(),
+                baseContext.values(),
+                baseContext.activeGoals(),
+                baseContext.recentEntries(),
+                analysisType
+        );
         String systemPrompt = promptBuilder.build(context);
 
-        log.info("Analyzing for user={}, type={}, query length={}",
-                userId, request.resolvedType(), request.query().length());
+        GoogleGenAiThinkingLevel thinkingLevel = thinkingLevelResolver.resolve(analysisType);
+
+        log.info("Analyzing for user={}, type={}, thinking={}, query length={}",
+                userId, analysisType, thinkingLevel, request.query().length());
 
         ChatResponse chatResponse = chatClient.prompt()
                 .system(systemPrompt)
                 .user(request.query())
+                .options(GoogleGenAiChatOptions.builder()
+                        .thinkingLevel(thinkingLevel)
+                        .build())
                 .call()
                 .chatResponse();
 
-        String text = chatResponse.getResult().getOutput().getText();
-        int tokens = (int) chatResponse.getMetadata().getUsage().getTotalTokens();
+        String text = Optional.ofNullable(chatResponse)
+                .map(ChatResponse::getResult)
+                .map(Generation::getOutput)
+                .map(AbstractMessage::getText)
+                .orElseThrow(NullPointerException::new);
+        int tokens = chatResponse.getMetadata().getUsage().getTotalTokens();
 
         log.info("generated response");
 

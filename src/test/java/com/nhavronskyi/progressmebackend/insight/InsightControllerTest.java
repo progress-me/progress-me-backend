@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -68,6 +69,7 @@ class InsightControllerTest {
         when(chatClient.prompt()).thenReturn(promptSpec);
         when(promptSpec.system(anyString())).thenReturn(promptSpec);
         when(promptSpec.user(anyString())).thenReturn(promptSpec);
+        when(promptSpec.options(any())).thenReturn(promptSpec);
         when(promptSpec.call()).thenReturn(callSpec);
         when(callSpec.chatResponse()).thenReturn(chatResponse);
     }
@@ -85,7 +87,7 @@ class InsightControllerTest {
                 .andExpect(jsonPath("$.type").value("analysis"))
                 .andExpect(jsonPath("$.query").value("How am I doing?"))
                 .andExpect(jsonPath("$.content").value("Great progress! Keep it up."))
-                .andExpect(jsonPath("$.model").value("gemini-2.0-flash"))
+                .andExpect(jsonPath("$.model").value("gemini-3-flash-preview"))
                 .andExpect(jsonPath("$.tokensUsed").value(150));
     }
 

@@ -5,6 +5,7 @@ import com.nhavronskyi.progressmebackend.goal.Goal;
 import com.nhavronskyi.progressmebackend.log.LogEntry;
 import com.nhavronskyi.progressmebackend.persona.Persona;
 import com.nhavronskyi.progressmebackend.value.UserValue;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.format.DateTimeFormatter;
@@ -13,12 +14,16 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
+@RequiredArgsConstructor
 public class SystemPromptBuilder {
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
+    private final ResponseStyleResolver styleResolver;
+
     public String build(AiContext context) {
-        return buildRole(context.aiSettings()) +
+        ResponseStyle style = styleResolver.resolve(context.analysisType(), context.aiSettings().tone());
+        return buildRole(context.aiSettings(), style) +
                 buildPersona(context.persona()) +
                 buildValues(context.values()) +
                 buildGoals(context.activeGoals()) +
@@ -26,7 +31,7 @@ public class SystemPromptBuilder {
                 buildInstructions(context.aiSettings());
     }
 
-    private String buildRole(AiContext.AiSettingsSnapshot settings) {
+    private String buildRole(AiContext.AiSettingsSnapshot settings, ResponseStyle style) {
         RoleProfile role = resolveRole(settings.tone(), settings.strictness());
         return """
                 You are %s. Your role is to help the user \
@@ -35,69 +40,19 @@ public class SystemPromptBuilder {
 
                 Communication style: %s (strictness: %d/10)
                 %s
-
                 Respond in %s.
 
-                ## Response formatting rules — CRITICAL
-                You MUST follow these formatting rules strictly. Readability is your top priority.
-
-                ### Structure & whitespace
-                - Start with a 1-2 sentence TL;DR summary prefixed with 📋.
-                - Use `## ` (H2) with an emoji for main sections: `## 🎯 Goal Progress`, `## 🧠 Patterns`, etc.
-                - Use `### ` (H3) for sub-categories within a section: `### ✅ On Track`, `### ⚠️ Needs Attention`.
-                - Insert a blank line BEFORE and AFTER every heading.
-                - Insert a blank line BETWEEN every bullet point so each item breathes.
-                - Use `---` separator between major sections.
-
-                ### Bullet points — ALWAYS use them
-                - Every individual goal, pattern, observation, or recommendation MUST be its own bullet point.
-                - NEVER stack items as consecutive sentences in a paragraph. Each item = one `- ` bullet.
-                - Nested details under a bullet should be indented sub-bullets (`  - `).
-                - Keep each bullet to 1-3 sentences max. If longer, break into sub-bullets.
-
-                Example of CORRECT formatting:
-                ```
-                ## 🎯 Goal Progress
-
-                Here's a breakdown across your active goals:
-
-                ### ✅ On Track & Moving Forward
-
-                - **Build Progress Analyzer MVP** — 🚀 You've been actively working on this, \
-                mentioning implementing it and starting its creation. Momentum is strong.
-
-                - **Learn AI/ML fundamentals** — 📈 You're consistently engaging with AI topics \
-                like agents, RAG systems, and embeddings. Great alignment with this goal.
-
-                ---
-
-                ### ⚠️ Needs More Attention
-
-                - **Exercise 3x per week** — 📉 No mentions of exercise in recent entries. \
-                Consider scheduling specific workout days.
-                ```
-
-                ### Emphasis & emojis
-                - Use **bold** for the item name at the start of each bullet.
-                - Use emojis as status indicators: ✅ positive, ❌ concern, 📈 uptrend, 📉 downtrend, \
-                🚀 momentum, 💪 strength, ⚡ energy, 😊 mood, 🎯 goal, 🔑 key point.
-                - Format metrics as: `😊 Mood: **7/10**`, `⚡ Energy: **6/10**`.
-                - Use *italics* sparingly for softer notes or caveats.
-
-                ### What NOT to do
-                - NEVER write walls of text without bullet points.
-                - NEVER put multiple items in one paragraph — always separate them.
-                - NEVER skip blank lines between bullets — cramped text is unreadable.
-
-                """.formatted(role.title(), settings.tone(), settings.strictness(), role.directive(), settings.language());
+                %s
+                """.formatted(role.title(), settings.tone().getTone(), settings.strictness(),
+                role.directive(), settings.language(), style.formattingInstructions());
     }
 
     private record RoleProfile(String title, String directive) {}
 
-    private RoleProfile resolveRole(String tone, int strictness) {
+    private RoleProfile resolveRole(ResponseStyleResolver.TONE_OVERLAY tone, int strictness) {
         String level = strictness <= 4 ? "low" : strictness <= 7 ? "mid" : "high";
-        return switch (tone != null ? tone.toLowerCase() : "balanced") {
-            case "gentle" -> switch (level) {
+        return switch (tone) {
+            case GENTLE -> switch (level) {
                 case "low" -> new RoleProfile(
                         "an empathetic therapist and personal growth companion",
                         "Be warm, patient, and validating. Focus on emotional safety and self-compassion.");
@@ -108,7 +63,7 @@ public class SystemPromptBuilder {
                         "a caring but firm mentor",
                         "Be compassionate yet honest. Acknowledge feelings, then redirect toward growth.");
             };
-            case "strict" -> switch (level) {
+            case STRICT -> switch (level) {
                 case "low" -> new RoleProfile(
                         "a direct mentor and progress tracker",
                         "Be straightforward and practical. Skip the fluff, focus on what needs doing.");
@@ -119,7 +74,7 @@ public class SystemPromptBuilder {
                         "a no-nonsense drill-sergeant coach",
                         "Be blunt and demanding. Hold the user to high standards with zero tolerance for excuses.");
             };
-            case "analytical" -> switch (level) {
+            case ANALYTICAL -> switch (level) {
                 case "low" -> new RoleProfile(
                         "a curious researcher and self-discovery guide",
                         "Focus on exploring patterns and asking insightful questions. Let data tell the story.");
@@ -130,7 +85,7 @@ public class SystemPromptBuilder {
                         "a rigorous performance analyst",
                         "Be precise and evidence-based. Quantify progress, flag deviations, demand measurable outcomes.");
             };
-            default -> switch (level) {
+            case BALANCED -> switch (level) {
                 case "low" -> new RoleProfile(
                         "a friendly mentor and personal growth companion",
                         "Mix warmth with practical advice. Encourage progress while being honest about gaps.");
