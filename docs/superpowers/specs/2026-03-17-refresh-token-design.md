@@ -7,8 +7,9 @@ Add refresh token support to automate user session refresh. Short-lived access t
 ## Architecture
 
 - **Access token**: Short-lived JWT (15 min), stateless, used for API auth (no change to validation logic)
-- **Refresh token**: Opaque UUID stored in PostgreSQL (30 days), rotated on each use
+- **Refresh token**: Opaque token (32 bytes from `SecureRandom`, Base64url-encoded) stored in PostgreSQL (30 days), rotated on each use
 - **Token family**: Each login creates a family (`familyId`). All tokens descended from one login share a `familyId`. If a previously-rotated token is reused, all tokens for that user are revoked (theft detection)
+- **Race condition mitigation**: `rotateRefreshToken` uses `SELECT ... FOR UPDATE` on the token row. If the token was already rotated within a 10-second grace period, return the same successor token pair instead of triggering theft detection
 
 ## Database Schema
 
@@ -25,9 +26,11 @@ CREATE TABLE refresh_tokens (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX idx_refresh_tokens_token ON refresh_tokens(token);
 CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX idx_refresh_tokens_family_id ON refresh_tokens(family_id);
 ```
+
+Note: The `UNIQUE` constraint on `token` already creates an index, so no separate index needed.
 
 ## Configuration
 
@@ -37,7 +40,7 @@ New properties in `application.yaml`:
 app:
   jwt:
     expiration-ms: 900000 # 15 minutes (changed from 86400000)
-    refresh-expiration-ms: 2592000000 # 30 days
+    refresh-expiration-ms: 2592000000 # 30 days (must be bound to long, not int)
 ```
 
 ## API Changes
@@ -46,14 +49,14 @@ app:
 
 **POST /api/auth/register** and **POST /api/auth/login**
 
-- Response now includes `refreshToken` field
+- Response now includes `refreshToken` field (breaking change to `AuthResponse` record — JSON field-name-based serialization is unaffected)
 
 ### New Endpoints
 
 **POST /api/auth/refresh**
 
 - Public (no auth required)
-- Request body: `{ "refreshToken": "..." }`
+- Request body: `RefreshRequest { @NotBlank String refreshToken }`
 - Success: returns new `AuthResponse` (new access token + new refresh token)
 - Failure: 401 Unauthorized
 
@@ -63,7 +66,7 @@ app:
 - Revokes all refresh tokens for the authenticated user
 - Returns 204 No Content
 
-### Response DTO
+### DTOs
 
 ```java
 public record AuthResponse(
@@ -73,6 +76,8 @@ public record AuthResponse(
     String email,
     String name
 )
+
+public record RefreshRequest(@NotBlank String refreshToken) {}
 ```
 
 ## Components
@@ -85,17 +90,18 @@ JPA entity mapping to `refresh_tokens` table with fields: `id`, `user`, `token`,
 
 Spring Data JPA repository with methods:
 
-- `findByToken(String token): Optional<RefreshToken>`
+- `findByTokenForUpdate(String token)`: `@Lock(PESSIMISTIC_WRITE)` query for rotation serialization
+- `findByToken(String token): Optional<RefreshToken>` (read-only lookups)
 - `revokeAllByUserId(UUID userId)`: update query setting `revoked = true`
 - `revokeAllByFamilyId(UUID familyId)`: update query setting `revoked = true`
-- `deleteByExpiresAtBefore(OffsetDateTime now)`: cleanup expired tokens
+- `deleteExpiredAndRevoked(OffsetDateTime now)`: cleanup expired OR revoked tokens
 
 ### RefreshTokenService
 
 Core service handling:
 
-- `createRefreshToken(User user)`: generates new token with new family, stores in DB
-- `rotateRefreshToken(String token)`: validates token, creates new token in same family, revokes old one. If token is already revoked (reuse detected), revokes ALL tokens for that user and throws exception
+- `createRefreshToken(User user)`: generates 32-byte `SecureRandom` token (Base64url-encoded), creates new `familyId`, stores in DB
+- `rotateRefreshToken(String token)`: `@Transactional` — acquires pessimistic lock on token row, validates not expired. If revoked: checks if rotated within 10s grace period (return successor), otherwise revokes ALL user tokens and throws. If valid: creates new token in same family, revokes old one
 - `revokeAllUserTokens(UUID userId)`: revokes all tokens for logout
 
 ### AuthService Changes
@@ -112,8 +118,11 @@ Core service handling:
 
 ### SecurityConfig Changes
 
-- Add `/api/auth/refresh` to public endpoints
-- `/api/auth/logout` requires authentication (already covered by default)
+Replace `/api/auth/**` wildcard with explicit paths to ensure logout requires authentication:
+
+```java
+.requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh").permitAll()
+```
 
 ## Authentication Flow
 
@@ -121,8 +130,9 @@ Core service handling:
 2. **API calls**: Client sends access JWT in `Authorization: Bearer` header (unchanged)
 3. **Access token expires**: Client gets 401, calls `POST /api/auth/refresh` with refresh token
 4. **Refresh succeeds**: New access JWT + new refresh token returned, old refresh token revoked
-5. **Refresh token reuse detected**: All user tokens revoked, user must re-login
-6. **Logout**: All refresh tokens for user revoked
+5. **Concurrent refresh (grace period)**: If same token is refreshed again within 10s, return the same successor pair
+6. **Refresh token reuse detected (outside grace)**: All user tokens revoked, user must re-login
+7. **Logout**: All refresh tokens for user revoked
 
 ## Error Handling
 
@@ -134,4 +144,9 @@ Core service handling:
 
 ## Cleanup
 
-Expired refresh tokens should be cleaned up periodically. A `@Scheduled` method in RefreshTokenService runs daily to delete tokens where `expires_at < now()`.
+A `@Scheduled` method in RefreshTokenService runs daily to delete tokens where `expires_at < now() OR revoked = true`.
+
+## Testing Strategy
+
+- Unit tests for `RefreshTokenService`: happy path rotation, expired token, revoked token (theft detection), grace period concurrent refresh
+- Integration tests: full refresh flow (login → use → refresh → use new token), theft detection scenario, logout revokes all tokens
