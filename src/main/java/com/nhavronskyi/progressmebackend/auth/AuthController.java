@@ -2,6 +2,7 @@ package com.nhavronskyi.progressmebackend.auth;
 
 import com.nhavronskyi.progressmebackend.auth.dto.AuthResponse;
 import com.nhavronskyi.progressmebackend.auth.dto.LoginRequest;
+import com.nhavronskyi.progressmebackend.auth.dto.RefreshRequest;
 import com.nhavronskyi.progressmebackend.auth.dto.RegisterRequest;
 import com.nhavronskyi.progressmebackend.user.User;
 import jakarta.validation.Valid;
@@ -28,6 +29,17 @@ public class AuthController {
     @PostMapping("/auth/login")
     public ResponseEntity<AuthResponse> login(@RequestBody @Valid LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/auth/refresh")
+    public ResponseEntity<AuthResponse> refresh(@RequestBody @Valid RefreshRequest request) {
+        return ResponseEntity.ok(authService.refresh(request.refreshToken()));
+    }
+
+    @PostMapping("/auth/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(@AuthenticationPrincipal User user) {
+        authService.logout(user.getId());
     }
 
     @GetMapping("/me")

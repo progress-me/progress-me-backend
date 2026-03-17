@@ -11,6 +11,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.Map;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -34,6 +36,7 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(register)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
                 .andExpect(jsonPath("$.email").value("test@example.com"))
                 .andExpect(jsonPath("$.name").value("Test User"))
                 .andReturn().getResponse().getContentAsString();
@@ -45,6 +48,7 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(login)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
                 .andExpect(jsonPath("$.email").value("test@example.com"));
     }
 
@@ -115,5 +119,59 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(register)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void refreshTokenFlow() throws Exception {
+        RegisterRequest register = new RegisterRequest("refresh@example.com", "password123", "Refresh User");
+        String body = mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(register)))
+                .andReturn().getResponse().getContentAsString();
+
+        String refreshToken = objectMapper.readTree(body).get("refreshToken").asText();
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("refreshToken", refreshToken))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+                .andExpect(jsonPath("$.email").value("refresh@example.com"));
+    }
+
+    @Test
+    void refreshWithInvalidTokenFails() throws Exception {
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("refreshToken", "invalid-token"))))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void logoutRevokesRefreshTokens() throws Exception {
+        RegisterRequest register = new RegisterRequest("logout@example.com", "password123", "Logout User");
+        String body = mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(register)))
+                .andReturn().getResponse().getContentAsString();
+
+        String accessToken = objectMapper.readTree(body).get("token").asText();
+        String refreshToken = objectMapper.readTree(body).get("refreshToken").asText();
+
+        mockMvc.perform(post("/api/auth/logout")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("refreshToken", refreshToken))))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void logoutRequiresAuth() throws Exception {
+        mockMvc.perform(post("/api/auth/logout"))
+                .andExpect(status().isForbidden());
     }
 }

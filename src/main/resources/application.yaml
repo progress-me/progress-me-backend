@@ -40,6 +40,7 @@ server:
 app:
   jwt:
     secret: ${JWT_SECRET:dGhpcy1pcy1hLXZlcnktbG9uZy1zZWNyZXQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5LXBsZWFzZS1jaGFuZ2UtaW4tcHJvZA==}
-    expiration-ms: 86400000
+    expiration-ms: 900000
+    refresh-expiration-ms: 2592000000
   ai:
     max-context-entries: 20

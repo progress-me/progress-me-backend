@@ -13,6 +13,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -20,6 +22,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PersonaRepository personaRepository;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
@@ -38,9 +41,12 @@ public class AuthService {
         persona.setUserId(user.getId());
         personaRepository.save(persona);
 
-        return new AuthResponse(jwtService.generateToken(user.getId()), user.getId(), user.getEmail(), user.getName());
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+        return new AuthResponse(jwtService.generateToken(user.getId()), refreshToken.getToken(),
+                user.getId(), user.getEmail(), user.getName());
     }
 
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
@@ -49,6 +55,21 @@ public class AuthService {
             throw new BadCredentialsException("Invalid credentials");
         }
 
-        return new AuthResponse(jwtService.generateToken(user.getId()), user.getId(), user.getEmail(), user.getName());
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+        return new AuthResponse(jwtService.generateToken(user.getId()), refreshToken.getToken(),
+                user.getId(), user.getEmail(), user.getName());
+    }
+
+    @Transactional
+    public AuthResponse refresh(String refreshTokenValue) {
+        RefreshToken newRefreshToken = refreshTokenService.rotateRefreshToken(refreshTokenValue);
+        User user = newRefreshToken.getUser();
+        return new AuthResponse(jwtService.generateToken(user.getId()), newRefreshToken.getToken(),
+                user.getId(), user.getEmail(), user.getName());
+    }
+
+    @Transactional
+    public void logout(UUID userId) {
+        refreshTokenService.revokeAllUserTokens(userId);
     }
 }

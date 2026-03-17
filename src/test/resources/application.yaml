@@ -24,5 +24,6 @@ app:
   jwt:
     secret: dGVzdC1zZWNyZXQta2V5LWZvci10ZXN0aW5nLW9ubHktbXVzdC1iZS1sb25nLWVub3VnaA==
     expiration-ms: 86400000
+    refresh-expiration-ms: 2592000000
   ai:
     max-context-entries: 20
