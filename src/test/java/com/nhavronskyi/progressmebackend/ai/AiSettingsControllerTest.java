@@ -105,6 +105,49 @@ class AiSettingsControllerTest {
     }
 
     @Test
+    void clearCustomInstructions() throws Exception {
+        UpdateAiSettingsRequest setRequest = new UpdateAiSettingsRequest(
+                "balanced", 5, null, null, "Be extra encouraging", "en"
+        );
+        mockMvc.perform(put("/api/me/ai-settings")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(setRequest)));
+
+        UpdateAiSettingsRequest clearRequest = new UpdateAiSettingsRequest(
+                "balanced", 5, null, null, null, "en"
+        );
+        mockMvc.perform(put("/api/me/ai-settings")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(clearRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customInstructions").doesNotExist());
+    }
+
+    @Test
+    void clearFocusAreas() throws Exception {
+        UpdateAiSettingsRequest setRequest = new UpdateAiSettingsRequest(
+                "balanced", 5, List.of("fitness", "sleep"), null, null, "en"
+        );
+        mockMvc.perform(put("/api/me/ai-settings")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(setRequest)));
+
+        UpdateAiSettingsRequest clearRequest = new UpdateAiSettingsRequest(
+                "balanced", 5, List.of(), null, null, "en"
+        );
+        mockMvc.perform(put("/api/me/ai-settings")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(clearRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.focusAreas").isArray())
+                .andExpect(jsonPath("$.focusAreas").isEmpty());
+    }
+
+    @Test
     void requiresAuth() throws Exception {
         mockMvc.perform(get("/api/me/ai-settings"))
                 .andExpect(status().isForbidden());

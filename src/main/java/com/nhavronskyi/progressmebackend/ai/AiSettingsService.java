@@ -34,24 +34,12 @@ public class AiSettingsService {
             return aiSettings;
         });
 
-        if (request.tone() != null){
-            settings.setTone(request.tone());
-        }
-        if (request.strictness() != null){
-            settings.setStrictness(request.strictness());
-        }
-        if (request.focusAreas() != null){
-            settings.setFocusAreas(request.focusAreas());
-        }
-        if (request.ignoreAreas() != null){
-            settings.setIgnoreAreas(request.ignoreAreas());
-        }
-        if (request.customInstructions() != null){
-            settings.setCustomInstructions(request.customInstructions());
-        }
-        if (request.language() != null){
-            settings.setLanguage(request.language());
-        }
+        settings.setTone(request.tone() != null ? request.tone() : "balanced");
+        settings.setStrictness(request.strictness() != null ? request.strictness() : 5);
+        settings.setFocusAreas(request.focusAreas() != null ? request.focusAreas() : List.of());
+        settings.setIgnoreAreas(request.ignoreAreas() != null ? request.ignoreAreas() : List.of());
+        settings.setCustomInstructions(request.customInstructions());
+        settings.setLanguage(request.language() != null ? request.language() : "en");
 
         return AiSettingsResponse.from(repository.save(settings));
     }
