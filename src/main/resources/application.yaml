@@ -5,6 +5,10 @@ spring:
     url: jdbc:postgresql://localhost:5432/progress_analyzer
     username: app
     password: dev
+    hikari:
+      minimum-idle: 0
+      idle-timeout: 60000
+      max-lifetime: 600000
   jpa:
     hibernate:
       ddl-auto: validate
