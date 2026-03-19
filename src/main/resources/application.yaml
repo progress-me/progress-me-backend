@@ -5,6 +5,7 @@ spring:
     url: jdbc:postgresql://localhost:5432/progress_analyzer
     username: app
     password: dev
+#  close connection to db to save costs when is not used
     hikari:
       minimum-idle: 0
       idle-timeout: 60000
@@ -36,6 +37,10 @@ management:
   endpoint:
     health:
       show-details: never
+#  close connection to db to save costs when is not used
+  health:
+    db:
+      enabled: false
 
 server:
   port: 8080
