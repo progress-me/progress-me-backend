@@ -13,10 +13,13 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-import tools.jackson.databind.DefaultTyping;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.DefaultTyping;
+import tools.jackson.databind.JavaType;
 import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
+import tools.jackson.databind.jsontype.impl.DefaultTypeResolverBuilder;
 
 import java.time.Duration;
 import java.util.Map;
@@ -70,9 +73,25 @@ public class RedisCacheConfig implements CachingConfigurer {
                 .allowIfSubType("java.")
                 .build();
 
+        DefaultTypeResolverBuilder typer = new DefaultTypeResolverBuilder(
+                ptv, DefaultTyping.NON_FINAL, JsonTypeInfo.As.WRAPPER_ARRAY) {
+            @Override
+            public boolean useForType(JavaType javaType) {
+                if (javaType.isJavaLangObject()) {
+                    return true;
+                }
+                // Include final types (records) unless they're in java.* package
+                if (javaType.isFinal()
+                        && !javaType.getRawClass().getPackageName().startsWith("java")) {
+                    return true;
+                }
+                return super.useForType(javaType);
+            }
+        };
+
         return GenericJacksonJsonRedisSerializer.builder()
                 .customize(builder -> builder
-                        .activateDefaultTyping(ptv, DefaultTyping.NON_FINAL)
+                        .setDefaultTyping(typer)
                         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false))
                 .build();
     }
