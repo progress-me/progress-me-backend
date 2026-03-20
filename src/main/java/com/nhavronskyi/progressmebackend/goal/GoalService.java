@@ -3,6 +3,7 @@ package com.nhavronskyi.progressmebackend.goal;
 import com.nhavronskyi.progressmebackend.category.Category;
 import com.nhavronskyi.progressmebackend.category.CategoryRepository;
 import com.nhavronskyi.progressmebackend.common.ResourceNotFoundException;
+import com.nhavronskyi.progressmebackend.cache.CacheEvictionService;
 import com.nhavronskyi.progressmebackend.goal.dto.CreateGoalRequest;
 import com.nhavronskyi.progressmebackend.goal.dto.GoalResponse;
 import com.nhavronskyi.progressmebackend.goal.dto.UpdateGoalRequest;
@@ -24,6 +25,7 @@ public class GoalService {
     private final GoalRepository goalRepository;
     private final CategoryRepository categoryRepository;
     private final LogEntryRepository logEntryRepository;
+    private final CacheEvictionService cacheEvictionService;
 
     @Transactional
     public GoalResponse ensureDefaultGoal(UUID userId) {
@@ -56,7 +58,9 @@ public class GoalService {
         goal.setTemplateData(request.templateData());
         goal.setCategories(resolveCategories(userId, request.categoryIds()));
 
-        return toResponse(goalRepository.save(goal));
+        GoalResponse response = toResponse(goalRepository.save(goal));
+        cacheEvictionService.evictDashboard(userId);
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -113,7 +117,9 @@ public class GoalService {
         if (request.templateData() != null) {
             goal.setTemplateData(request.templateData());
         }
-        return toResponse(goalRepository.save(goal));
+        GoalResponse response = toResponse(goalRepository.save(goal));
+        cacheEvictionService.evictDashboard(userId);
+        return response;
     }
 
     @Transactional
@@ -128,7 +134,9 @@ public class GoalService {
         }
 
         goal.setStatus(newStatus);
-        return toResponse(goalRepository.save(goal));
+        GoalResponse response = toResponse(goalRepository.save(goal));
+        cacheEvictionService.evictDashboard(userId);
+        return response;
     }
 
     @Transactional
@@ -138,6 +146,7 @@ public class GoalService {
             throw new IllegalArgumentException("Cannot delete the default goal");
         }
         goalRepository.delete(goal);
+        cacheEvictionService.evictDashboard(userId);
     }
 
     private Set<Category> resolveCategories(UUID userId, List<UUID> categoryIds) {

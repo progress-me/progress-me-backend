@@ -3,6 +3,8 @@ package com.nhavronskyi.progressmebackend.ai;
 import com.nhavronskyi.progressmebackend.ai.dto.AiSettingsResponse;
 import com.nhavronskyi.progressmebackend.ai.dto.UpdateAiSettingsRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,7 @@ public class AiSettingsService {
 
     private final AiSettingsRepository repository;
 
+    @Cacheable(value = "ai-settings", key = "#userId")
     @Transactional(readOnly = true)
     public AiSettingsResponse get(UUID userId) {
         return repository.findByUserId(userId)
@@ -26,6 +29,7 @@ public class AiSettingsService {
                 .orElse(DEFAULTS);
     }
 
+    @CacheEvict(value = "ai-settings", key = "#userId")
     @Transactional
     public AiSettingsResponse update(UUID userId, UpdateAiSettingsRequest request) {
         AiSettings settings = repository.findByUserId(userId).orElseGet(() -> {

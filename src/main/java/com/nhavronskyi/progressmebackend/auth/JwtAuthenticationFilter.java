@@ -1,6 +1,6 @@
 package com.nhavronskyi.progressmebackend.auth;
 
-import com.nhavronskyi.progressmebackend.user.UserRepository;
+import com.nhavronskyi.progressmebackend.user.UserCacheService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,7 +19,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UserRepository userRepository;
+    private final UserCacheService userCacheService;
 
     @Override
     protected void doFilterInternal(
@@ -34,13 +34,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = header.substring(7);
-        jwtService.extractUserIdIfValid(token).ifPresent(userId ->
-                userRepository.findById(userId).ifPresent(user ->
-                        SecurityContextHolder.getContext().setAuthentication(
-                                new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities())
-                        )
-                )
-        );
+        jwtService.extractUserIdIfValid(token)
+                .flatMap(userCacheService::findById)
+                .ifPresent(user -> SecurityContextHolder.getContext().setAuthentication(
+                        new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities())
+                ));
         chain.doFilter(request, response);
     }
 }

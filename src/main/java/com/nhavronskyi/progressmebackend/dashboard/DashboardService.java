@@ -5,6 +5,7 @@ import com.nhavronskyi.progressmebackend.dashboard.dto.DashboardResponse.*;
 import com.nhavronskyi.progressmebackend.goal.GoalRepository;
 import com.nhavronskyi.progressmebackend.log.LogEntryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,7 @@ public class DashboardService {
     private final LogEntryRepository logEntryRepository;
     private final GoalRepository goalRepository;
 
+    @Cacheable(value = "dashboard", key = "#userId + ':' + #period")
     @Transactional(readOnly = true)
     public DashboardResponse getDashboard(UUID userId, int period) {
         LocalDate to = LocalDate.now();

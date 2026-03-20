@@ -6,7 +6,7 @@ import com.nhavronskyi.progressmebackend.ai.dto.AiContext;
 import com.nhavronskyi.progressmebackend.ai.dto.AiContext.AiSettingsSnapshot;
 import com.nhavronskyi.progressmebackend.goal.Goal;
 import com.nhavronskyi.progressmebackend.log.LogEntry;
-import com.nhavronskyi.progressmebackend.persona.Persona;
+import com.nhavronskyi.progressmebackend.persona.dto.PersonaResponse;
 import com.nhavronskyi.progressmebackend.value.UserValue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -171,11 +171,9 @@ class SystemPromptBuilderTest {
     }
 
     private AiContext createFullContext() {
-        Persona persona = new Persona();
-        persona.setDisplayName("Test User");
-        persona.setAge(25);
-        persona.setBio("A developer");
-        persona.setStrengths("Coding");
+        PersonaResponse persona = new PersonaResponse(
+                null, null, "Test User", 25, "A developer", "Coding", null, null, null, null
+        );
 
         UserValue value = new UserValue();
         value.setName("Health");

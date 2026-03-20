@@ -3,6 +3,7 @@ package com.nhavronskyi.progressmebackend.log;
 import com.nhavronskyi.progressmebackend.category.Category;
 import com.nhavronskyi.progressmebackend.category.CategoryRepository;
 import com.nhavronskyi.progressmebackend.common.ResourceNotFoundException;
+import com.nhavronskyi.progressmebackend.cache.CacheEvictionService;
 import com.nhavronskyi.progressmebackend.goal.Goal;
 import com.nhavronskyi.progressmebackend.goal.GoalRepository;
 import com.nhavronskyi.progressmebackend.log.dto.*;
@@ -28,6 +29,7 @@ public class LogEntryService {
     private final UserValueRepository valueRepository;
     private final GoalRepository goalRepository;
     private final CategoryRepository categoryRepository;
+    private final CacheEvictionService cacheEvictionService;
 
     @Transactional
     public LogEntryResponse create(UUID userId, CreateLogEntryRequest request) {
@@ -52,6 +54,7 @@ public class LogEntryService {
         }
 
         LogEntry saved = repository.save(entry);
+        cacheEvictionService.evictDashboard(userId);
         return toResponse(saved);
     }
 
@@ -121,7 +124,9 @@ public class LogEntryService {
         if (request.tagValueIds() != null) {
             entry.setTags(resolveValues(userId, request.tagValueIds()));
         }
-        return toResponse(repository.save(entry));
+        LogEntryResponse response = toResponse(repository.save(entry));
+        cacheEvictionService.evictDashboard(userId);
+        return response;
     }
 
     @Transactional
@@ -131,7 +136,9 @@ public class LogEntryService {
 
         Set<UserValue> tags = resolveValues(userId, request.valueIds());
         entry.setTags(tags);
-        return toResponse(repository.save(entry));
+        LogEntryResponse response = toResponse(repository.save(entry));
+        cacheEvictionService.evictDashboard(userId);
+        return response;
     }
 
     @Transactional
@@ -139,6 +146,7 @@ public class LogEntryService {
         LogEntry entry = repository.findByIdAndUserId(entryId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Log entry not found"));
         repository.delete(entry);
+        cacheEvictionService.evictDashboard(userId);
     }
 
     private LogEntryResponse toResponse(LogEntry entry) {

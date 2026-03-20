@@ -6,6 +6,7 @@ import com.nhavronskyi.progressmebackend.value.dto.CreateValueRequest;
 import com.nhavronskyi.progressmebackend.value.dto.UpdateValueRequest;
 import com.nhavronskyi.progressmebackend.value.dto.ValueResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ public class UserValueService {
     private final UserValueRepository valueRepository;
     private final CategoryRepository categoryRepository;
 
+    @CacheEvict(value = "categories", key = "#userId")
     @Transactional
     public ValueResponse create(UUID userId, UUID categoryId, CreateValueRequest request) {
         categoryRepository.findByIdAndUserId(categoryId, userId)
@@ -41,6 +43,7 @@ public class UserValueService {
                 .toList();
     }
 
+    @CacheEvict(value = "categories", key = "#userId")
     @Transactional
     public ValueResponse update(UUID userId, UUID valueId, UpdateValueRequest request) {
         UserValue value = findOwned(userId, valueId);
@@ -53,6 +56,7 @@ public class UserValueService {
         return ValueResponse.from(valueRepository.save(value));
     }
 
+    @CacheEvict(value = "categories", key = "#userId")
     @Transactional
     public void delete(UUID userId, UUID valueId) {
         UserValue value = findOwned(userId, valueId);

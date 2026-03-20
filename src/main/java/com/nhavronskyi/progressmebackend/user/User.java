@@ -1,5 +1,6 @@
 package com.nhavronskyi.progressmebackend.user;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -26,6 +27,7 @@ public class User implements UserDetails {
     @Column(unique = true, nullable = false, length = 255)
     private String email;
 
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(name = "password_hash", length = 255)
     private String passwordHash;
 

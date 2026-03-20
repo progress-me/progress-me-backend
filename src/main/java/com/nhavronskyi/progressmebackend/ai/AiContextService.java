@@ -2,12 +2,13 @@ package com.nhavronskyi.progressmebackend.ai;
 
 import com.nhavronskyi.progressmebackend.ai.dto.AiContext;
 import com.nhavronskyi.progressmebackend.ai.dto.AiContext.AiSettingsSnapshot;
+import com.nhavronskyi.progressmebackend.ai.dto.AiSettingsResponse;
 import com.nhavronskyi.progressmebackend.goal.Goal;
 import com.nhavronskyi.progressmebackend.goal.GoalRepository;
 import com.nhavronskyi.progressmebackend.log.LogEntry;
 import com.nhavronskyi.progressmebackend.log.LogEntryRepository;
-import com.nhavronskyi.progressmebackend.persona.Persona;
-import com.nhavronskyi.progressmebackend.persona.PersonaRepository;
+import com.nhavronskyi.progressmebackend.persona.PersonaService;
+import com.nhavronskyi.progressmebackend.persona.dto.PersonaResponse;
 import com.nhavronskyi.progressmebackend.value.UserValue;
 import com.nhavronskyi.progressmebackend.value.UserValueRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,8 +24,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AiContextService {
 
-    private final PersonaRepository personaRepository;
-    private final AiSettingsRepository aiSettingsRepository;
+    private final PersonaService personaService;
+    private final AiSettingsService aiSettingsService;
     private final UserValueRepository valueRepository;
     private final GoalRepository goalRepository;
     private final LogEntryRepository logEntryRepository;
@@ -32,13 +33,17 @@ public class AiContextService {
 
     @Transactional(readOnly = true)
     public AiContext buildContext(UUID userId) {
-        Persona persona = personaRepository.findByUserId(userId).orElse(null);
+        PersonaResponse persona = personaService.get(userId);
 
-        AiSettingsSnapshot settings = aiSettingsRepository.findByUserId(userId)
-                .map(s -> new AiSettingsSnapshot(
-                        ResponseStyleResolver.TONE_OVERLAY.fromString(s.getTone()), s.getStrictness(), s.getFocusAreas(),
-                        s.getIgnoreAreas(), s.getCustomInstructions(), s.getLanguage()))
-                .orElse(new AiSettingsSnapshot(ResponseStyleResolver.TONE_OVERLAY.BALANCED, 5, List.of(), List.of(), null, "en"));
+        AiSettingsResponse settingsResponse = aiSettingsService.get(userId);
+        AiSettingsSnapshot settings = new AiSettingsSnapshot(
+                ResponseStyleResolver.TONE_OVERLAY.fromString(settingsResponse.tone()),
+                settingsResponse.strictness(),
+                settingsResponse.focusAreas(),
+                settingsResponse.ignoreAreas(),
+                settingsResponse.customInstructions(),
+                settingsResponse.language()
+        );
 
         List<UserValue> values = valueRepository.findByUserIdOrderBySortOrderAsc(userId);
 

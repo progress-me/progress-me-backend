@@ -3,7 +3,7 @@ package com.nhavronskyi.progressmebackend.ai;
 import com.nhavronskyi.progressmebackend.ai.dto.AiContext;
 import com.nhavronskyi.progressmebackend.goal.Goal;
 import com.nhavronskyi.progressmebackend.log.LogEntry;
-import com.nhavronskyi.progressmebackend.persona.Persona;
+import com.nhavronskyi.progressmebackend.persona.dto.PersonaResponse;
 import com.nhavronskyi.progressmebackend.value.UserValue;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -99,30 +99,30 @@ public class SystemPromptBuilder {
         };
     }
 
-    private String buildPersona(Persona persona) {
+    private String buildPersona(PersonaResponse persona) {
         if (persona == null) return "";
 
         StringBuilder sb = new StringBuilder("## About the user\n");
-        if (persona.getDisplayName() != null) {
-            sb.append("Name: ").append(persona.getDisplayName()).append("\n");
+        if (persona.displayName() != null) {
+            sb.append("Name: ").append(persona.displayName()).append("\n");
         }
-        if (persona.getAge() != null) {
-            sb.append("Age: ").append(persona.getAge()).append("\n");
+        if (persona.age() != null) {
+            sb.append("Age: ").append(persona.age()).append("\n");
         }
-        if (persona.getBio() != null) {
-            sb.append("Bio: ").append(persona.getBio()).append("\n");
+        if (persona.bio() != null) {
+            sb.append("Bio: ").append(persona.bio()).append("\n");
         }
-        if (persona.getStrengths() != null) {
-            sb.append("Strengths: ").append(persona.getStrengths()).append("\n");
+        if (persona.strengths() != null) {
+            sb.append("Strengths: ").append(persona.strengths()).append("\n");
         }
-        if (persona.getWeaknesses() != null) {
-            sb.append("Weaknesses: ").append(persona.getWeaknesses()).append("\n");
+        if (persona.weaknesses() != null) {
+            sb.append("Weaknesses: ").append(persona.weaknesses()).append("\n");
         }
-        if (persona.getInterests() != null) {
-            sb.append("Interests: ").append(persona.getInterests()).append("\n");
+        if (persona.interests() != null) {
+            sb.append("Interests: ").append(persona.interests()).append("\n");
         }
-        if (persona.getContext() != null) {
-            sb.append("Life context: ").append(persona.getContext()).append("\n");
+        if (persona.context() != null) {
+            sb.append("Life context: ").append(persona.context()).append("\n");
         }
         sb.append("\n");
         return sb.toString();

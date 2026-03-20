@@ -8,6 +8,8 @@ import com.nhavronskyi.progressmebackend.common.ResourceNotFoundException;
 import com.nhavronskyi.progressmebackend.value.UserValueRepository;
 import com.nhavronskyi.progressmebackend.value.dto.ValueResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,7 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final UserValueRepository valueRepository;
 
+    @CacheEvict(value = "categories", key = "#userId")
     @Transactional
     public CategoryResponse create(UUID userId, CreateCategoryRequest request) {
         // DB has UNIQUE (user_id, name), but give a nice error message
@@ -44,6 +47,7 @@ public class CategoryService {
         return CategoryResponse.from(categoryRepository.save(category), List.of());
     }
 
+    @Cacheable(value = "categories", key = "#userId")
     @Transactional(readOnly = true)
     public List<CategoryResponse> listForUser(UUID userId) {
         List<Category> categories = categoryRepository.findByUserIdOrderBySortOrderAsc(userId);
@@ -65,6 +69,7 @@ public class CategoryService {
         return CategoryResponse.from(category, valuesForCategory(categoryId));
     }
 
+    @CacheEvict(value = "categories", key = "#userId")
     @Transactional
     public CategoryResponse update(UUID userId, UUID categoryId, UpdateCategoryRequest request) {
         Category category = findOwned(userId, categoryId);
@@ -83,6 +88,7 @@ public class CategoryService {
         return CategoryResponse.from(categoryRepository.save(category), valuesForCategory(categoryId));
     }
 
+    @CacheEvict(value = "categories", key = "#userId")
     @Transactional
     public void delete(UUID userId, UUID categoryId) {
         Category category = findOwned(userId, categoryId);
