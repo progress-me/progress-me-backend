@@ -13,7 +13,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
 import java.util.Map;
@@ -24,8 +23,8 @@ import java.util.Map;
 public class RedisCacheConfig implements CachingConfigurer {
 
     @Bean
-    public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
-        GenericJacksonJsonRedisSerializer jsonSerializer = createJsonSerializer(objectMapper);
+    public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+        GenericJacksonJsonRedisSerializer jsonSerializer = createJsonSerializer();
 
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
@@ -47,11 +46,11 @@ public class RedisCacheConfig implements CachingConfigurer {
     }
 
     @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
+    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(createJsonSerializer(objectMapper));
+        template.setValueSerializer(createJsonSerializer());
         return template;
     }
 
@@ -60,7 +59,9 @@ public class RedisCacheConfig implements CachingConfigurer {
         return new LoggingCacheErrorHandler();
     }
 
-    private GenericJacksonJsonRedisSerializer createJsonSerializer(ObjectMapper objectMapper) {
-        return new GenericJacksonJsonRedisSerializer(objectMapper);
+    private GenericJacksonJsonRedisSerializer createJsonSerializer() {
+        return GenericJacksonJsonRedisSerializer.builder()
+                .enableUnsafeDefaultTyping()
+                .build();
     }
 }
