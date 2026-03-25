@@ -10,48 +10,15 @@ public class ResponseStyleResolver {
 
     private static final Map<TYPE_STRUCTURE, String> TYPE_STRUCTURES = Map.of(
             TYPE_STRUCTURE.ANALYSIS, """
-                    ### Structure
-                    - Start with a 1-2 sentence TL;DR summary.
-                    - Use `## ` (H2) with an emoji for main sections: `## 🎯 Goal Progress`, `## 🧠 Patterns`, etc.
-                    - Use `### ` (H3) for sub-categories: `### ✅ On Track`, `### ⚠️ Needs Attention`.
-                    - Insert a blank line BEFORE and AFTER every heading and between bullet points.
-                    - Use `---` separator between major sections.
-                    - Every observation, recommendation, or goal MUST be its own bullet point.
-                    - Keep each bullet to 1-3 sentences max. Nested details use indented sub-bullets (`  - `).
-                    """,
+                    You are providing a personal growth analysis. Freely explore what stands out in the data.""",
             TYPE_STRUCTURE.WEEKLY_SUMMARY, """
-                    ### Structure
-                    - Open with a week-at-a-glance summary (2-3 sentences covering overall trajectory).
-                    - Use a **time-segmented breakdown**: group insights by early-week / mid-week / late-week.
-                    - Include a **metrics table** (markdown table) for mood, energy, and activity counts.
-                    - Add a **week-over-week comparison** section highlighting changes from the prior period.
-                    - Close with 2-3 concrete focus items for the coming week.
-                    - Use `---` between each major section.
-                    """,
+                    You are summarizing the user's week. Focus on what matters most from recent entries.""",
             TYPE_STRUCTURE.WARNING, """
-                    ### Structure
-                    - Lead with **severity level** (🔴 High / 🟡 Medium / 🟢 Low) and a one-line summary.
-                    - Follow with **evidence bullets** — specific entries, dates, and metrics that triggered the warning.
-                    - List **immediate action items** as a numbered checklist.
-                    - End with a brief supportive note acknowledging effort.
-                    - Keep the entire response focused and concise — no lengthy preambles.
-                    """,
+                    You are raising a concern based on patterns you've noticed. Be clear about what triggered it.""",
             TYPE_STRUCTURE.PREDICTION, """
-                    ### Structure
-                    - Start with **current trajectory** — where the user is heading based on recent data.
-                    - Present **projected outcomes** for 1-week and 1-month horizons.
-                    - Identify **inflection points** — specific behaviors or events that could shift the trajectory.
-                    - Use conditional language ("If you maintain…", "Should you shift…") for projections.
-                    - Close with the single highest-leverage action the user can take.
-                    """,
+                    You are projecting where the user is heading based on their recent trajectory.""",
             TYPE_STRUCTURE.PATTERN, """
-                    ### Structure
-                    - Present each identified pattern as a **titled block** (`### Pattern: <name>`).
-                    - Under each pattern, include: description, supporting evidence (dates/entries), and frequency.
-                    - Add a **correlations** section showing relationships between patterns (e.g., "Low sleep → low energy next day").
-                    - Include **confidence indicators** (🟢 Strong / 🟡 Moderate / 🔴 Weak) for each pattern.
-                    - Close with which patterns to leverage and which to break.
-                    """);
+                    You are highlighting recurring patterns in the user's behavior and entries.""");
 
     private static final Map<TONE_OVERLAY, String> TONE_OVERLAYS = Map.of(
             TONE_OVERLAY.GENTLE, """
@@ -139,10 +106,10 @@ public class ResponseStyleResolver {
                 ## Response formatting rules
                 %s
                 %s
-                ### General rules
-                - NEVER write walls of text without bullet points.
-                - NEVER put multiple items in one paragraph — always separate them.
-                - NEVER skip blank lines between bullets — cramped text is unreadable.
+                ### Formatting guidance
+                - Use markdown formatting (headings, bold, bullets, tables, separators) as needed for readability.
+                - Vary your response structure naturally — no two responses should look identical.
+                - Adapt length and format to the content: brief when appropriate, detailed when warranted.
                 - Use *italics* sparingly for softer notes or caveats.
                 """.formatted(structure, style);
 
