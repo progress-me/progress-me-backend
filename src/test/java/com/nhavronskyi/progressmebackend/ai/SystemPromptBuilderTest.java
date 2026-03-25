@@ -1,7 +1,6 @@
 package com.nhavronskyi.progressmebackend.ai;
 
 import com.nhavronskyi.progressmebackend.ai.ResponseStyleResolver.TONE_OVERLAY;
-import com.nhavronskyi.progressmebackend.ai.ResponseStyleResolver.TYPE_STRUCTURE;
 import com.nhavronskyi.progressmebackend.ai.dto.AiContext;
 import com.nhavronskyi.progressmebackend.ai.dto.AiContext.AiSettingsSnapshot;
 import com.nhavronskyi.progressmebackend.goal.Goal;
@@ -42,9 +41,18 @@ class SystemPromptBuilderTest {
     }
 
     @Test
+    void buildIncludesConversationalInstruction() {
+        AiContext context = createFullContext();
+        String prompt = builder.build(context);
+
+        assertThat(prompt).contains("ongoing conversation");
+        assertThat(prompt).contains("Be natural and conversational");
+    }
+
+    @Test
     void buildHandlesNullPersona() {
         AiContext context = new AiContext(
-                null, defaultSettings(), List.of(), List.of(), List.of(), TYPE_STRUCTURE.ANALYSIS
+                null, defaultSettings(), List.of(), List.of(), List.of()
         );
         String prompt = builder.build(context);
 
@@ -55,7 +63,7 @@ class SystemPromptBuilderTest {
     @Test
     void buildHandlesEmptyLists() {
         AiContext context = new AiContext(
-                null, defaultSettings(), List.of(), List.of(), List.of(), TYPE_STRUCTURE.ANALYSIS
+                null, defaultSettings(), List.of(), List.of(), List.of()
         );
         String prompt = builder.build(context);
 
@@ -69,7 +77,7 @@ class SystemPromptBuilderTest {
         AiSettingsSnapshot settings = new AiSettingsSnapshot(
                 TONE_OVERLAY.STRICT, 8, List.of("fitness", "sleep"), List.of("work"), null, "en"
         );
-        AiContext context = new AiContext(null, settings, List.of(), List.of(), List.of(), TYPE_STRUCTURE.ANALYSIS);
+        AiContext context = new AiContext(null, settings, List.of(), List.of(), List.of());
         String prompt = builder.build(context);
 
         assertThat(prompt).contains("no-nonsense drill-sergeant coach");
@@ -84,7 +92,7 @@ class SystemPromptBuilderTest {
         AiSettingsSnapshot settings = new AiSettingsSnapshot(
                 TONE_OVERLAY.BALANCED, 5, List.of(), List.of(), "Be extra encouraging", "en"
         );
-        AiContext context = new AiContext(null, settings, List.of(), List.of(), List.of(), TYPE_STRUCTURE.ANALYSIS);
+        AiContext context = new AiContext(null, settings, List.of(), List.of(), List.of());
         String prompt = builder.build(context);
 
         assertThat(prompt).contains("Be extra encouraging");
@@ -122,7 +130,7 @@ class SystemPromptBuilderTest {
     @MethodSource("toneStrictnessRoleCombinations")
     void resolveRoleMatchesToneAndStrictness(TONE_OVERLAY tone, int strictness, String expectedRoleFragment) {
         AiSettingsSnapshot settings = new AiSettingsSnapshot(tone, strictness, List.of(), List.of(), null, "en");
-        AiContext context = new AiContext(null, settings, List.of(), List.of(), List.of(), TYPE_STRUCTURE.ANALYSIS);
+        AiContext context = new AiContext(null, settings, List.of(), List.of(), List.of());
         String prompt = builder.build(context);
 
         assertThat(prompt).contains(expectedRoleFragment);
@@ -131,41 +139,21 @@ class SystemPromptBuilderTest {
     @Test
     void roleIncludesBehavioralDirective() {
         AiSettingsSnapshot settings = new AiSettingsSnapshot(TONE_OVERLAY.STRICT, 10, List.of(), List.of(), null, "en");
-        AiContext context = new AiContext(null, settings, List.of(), List.of(), List.of(), TYPE_STRUCTURE.ANALYSIS);
+        AiContext context = new AiContext(null, settings, List.of(), List.of(), List.of());
         String prompt = builder.build(context);
 
         assertThat(prompt).contains("Be blunt and demanding");
     }
 
     @Test
-    void formattingRulesAdaptToType() {
-        AiSettingsSnapshot settings = new AiSettingsSnapshot(TONE_OVERLAY.ANALYTICAL, 1, List.of(), List.of(), null, "en");
-
-        AiContext analysisCtx = new AiContext(null, settings, List.of(), List.of(), List.of(), TYPE_STRUCTURE.ANALYSIS);
-        String analysisPrompt = builder.build(analysisCtx);
-        assertThat(analysisPrompt).contains("Response formatting rules");
-        assertThat(analysisPrompt).contains("TL;DR summary");
-
-        AiContext warningCtx = new AiContext(null, settings, List.of(), List.of(), List.of(), TYPE_STRUCTURE.WARNING);
-        String warningPrompt = builder.build(warningCtx);
-        assertThat(warningPrompt).contains("severity level");
-        assertThat(warningPrompt).contains("immediate action items");
-
-        AiContext weeklyCtx = new AiContext(null, settings, List.of(), List.of(), List.of(), TYPE_STRUCTURE.WEEKLY_SUMMARY);
-        String weeklyPrompt = builder.build(weeklyCtx);
-        assertThat(weeklyPrompt).contains("metrics table");
-        assertThat(weeklyPrompt).contains("week-over-week comparison");
-    }
-
-    @Test
     void formattingStyleAdaptsToTone() {
         AiSettingsSnapshot gentleSettings = new AiSettingsSnapshot(TONE_OVERLAY.GENTLE, 5, List.of(), List.of(), null, "en");
-        AiContext gentleCtx = new AiContext(null, gentleSettings, List.of(), List.of(), List.of(), TYPE_STRUCTURE.ANALYSIS);
+        AiContext gentleCtx = new AiContext(null, gentleSettings, List.of(), List.of(), List.of());
         String gentlePrompt = builder.build(gentleCtx);
         assertThat(gentlePrompt).contains("warm, narrative prose");
 
         AiSettingsSnapshot strictSettings = new AiSettingsSnapshot(TONE_OVERLAY.STRICT, 5, List.of(), List.of(), null, "en");
-        AiContext strictCtx = new AiContext(null, strictSettings, List.of(), List.of(), List.of(), TYPE_STRUCTURE.ANALYSIS);
+        AiContext strictCtx = new AiContext(null, strictSettings, List.of(), List.of(), List.of());
         String strictPrompt = builder.build(strictCtx);
         assertThat(strictPrompt).contains("no-nonsense language");
     }
@@ -192,7 +180,7 @@ class SystemPromptBuilderTest {
         entry.setEnergy(7);
         entry.setLoggedAt(OffsetDateTime.now());
 
-        return new AiContext(persona, defaultSettings(), List.of(value), List.of(goal), List.of(entry), TYPE_STRUCTURE.ANALYSIS);
+        return new AiContext(persona, defaultSettings(), List.of(value), List.of(goal), List.of(entry));
     }
 
     private AiSettingsSnapshot defaultSettings() {

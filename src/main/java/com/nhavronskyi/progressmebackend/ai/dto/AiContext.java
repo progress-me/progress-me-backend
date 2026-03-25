@@ -8,22 +8,14 @@ import com.nhavronskyi.progressmebackend.value.UserValue;
 
 import java.util.List;
 
-/**
- * Aggregated context for building AI prompts.
- * Contains everything the AI needs to know about the user.
- */
 public record AiContext(
         PersonaResponse persona,
         AiSettingsSnapshot aiSettings,
         List<UserValue> values,
         List<Goal> activeGoals,
-        List<LogEntry> recentEntries,
-        ResponseStyleResolver.TYPE_STRUCTURE analysisType
+        List<LogEntry> recentEntries
 ) {
 
-    /**
-     * Snapshot of AI settings to avoid entity coupling.
-     */
     public record AiSettingsSnapshot(
             ResponseStyleResolver.TONE_OVERLAY tone,
             int strictness,

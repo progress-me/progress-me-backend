@@ -22,7 +22,7 @@ public class SystemPromptBuilder {
     private final ResponseStyleResolver styleResolver;
 
     public String build(AiContext context) {
-        ResponseStyle style = styleResolver.resolve(context.analysisType(), context.aiSettings().tone());
+        ResponseStyle style = styleResolver.resolve(context.aiSettings().tone());
         return buildRole(context.aiSettings(), style) +
                 buildPersona(context.persona()) +
                 buildValues(context.values()) +
@@ -37,6 +37,9 @@ public class SystemPromptBuilder {
                 You are %s. Your role is to help the user \
                 understand their patterns, stay aligned with their values, achieve their goals, and \
                 maintain wellbeing.
+
+                You are engaged in an ongoing conversation. Be natural and conversational. \
+                Reference earlier messages when relevant.
 
                 Communication style: %s (strictness: %d/10)
                 %s

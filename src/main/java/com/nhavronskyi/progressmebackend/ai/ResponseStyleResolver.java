@@ -8,18 +8,6 @@ import java.util.Map;
 @Component
 public class ResponseStyleResolver {
 
-    private static final Map<TYPE_STRUCTURE, String> TYPE_STRUCTURES = Map.of(
-            TYPE_STRUCTURE.ANALYSIS, """
-                    You are providing a personal growth analysis. Freely explore what stands out in the data.""",
-            TYPE_STRUCTURE.WEEKLY_SUMMARY, """
-                    You are summarizing the user's week. Focus on what matters most from recent entries.""",
-            TYPE_STRUCTURE.WARNING, """
-                    You are raising a concern based on patterns you've noticed. Be clear about what triggered it.""",
-            TYPE_STRUCTURE.PREDICTION, """
-                    You are projecting where the user is heading based on their recent trajectory.""",
-            TYPE_STRUCTURE.PATTERN, """
-                    You are highlighting recurring patterns in the user's behavior and entries.""");
-
     private static final Map<TONE_OVERLAY, String> TONE_OVERLAYS = Map.of(
             TONE_OVERLAY.GENTLE, """
                     ### Style
@@ -51,29 +39,6 @@ public class ResponseStyleResolver {
                     """);
 
     @Getter
-    public enum TYPE_STRUCTURE {
-        ANALYSIS("analysis"),
-        WEEKLY_SUMMARY("weekly_summary"),
-        WARNING("warning"),
-        PREDICTION("prediction"),
-        PATTERN("pattern");
-
-        private final String type;
-
-        TYPE_STRUCTURE(String type) {
-            this.type = type;
-        }
-
-        public static TYPE_STRUCTURE fromString(String value) {
-            if (value == null) return ANALYSIS;
-            for (TYPE_STRUCTURE ts : values()) {
-                if (ts.type.equalsIgnoreCase(value)) return ts;
-            }
-            return ANALYSIS;
-        }
-    }
-
-    @Getter
     public enum TONE_OVERLAY {
         GENTLE("gentle"),
         STRICT("strict"),
@@ -95,23 +60,20 @@ public class ResponseStyleResolver {
         }
     }
 
-    private static final String DEFAULT_TYPE_STRUCTURE = TYPE_STRUCTURES.get(TYPE_STRUCTURE.ANALYSIS);
     private static final String DEFAULT_TONE_OVERLAY = TONE_OVERLAYS.get(TONE_OVERLAY.BALANCED);
 
-    public ResponseStyle resolve(TYPE_STRUCTURE analysisType, TONE_OVERLAY tone) {
-        String structure = TYPE_STRUCTURES.getOrDefault(analysisType, DEFAULT_TYPE_STRUCTURE);
+    public ResponseStyle resolve(TONE_OVERLAY tone) {
         String style = TONE_OVERLAYS.getOrDefault(tone, DEFAULT_TONE_OVERLAY);
 
         String instructions = """
                 ## Response formatting rules
-                %s
                 %s
                 ### Formatting guidance
                 - Use markdown formatting (headings, bold, bullets, tables, separators) as needed for readability.
                 - Vary your response structure naturally — no two responses should look identical.
                 - Adapt length and format to the content: brief when appropriate, detailed when warranted.
                 - Use *italics* sparingly for softer notes or caveats.
-                """.formatted(structure, style);
+                """.formatted(style);
 
         return new ResponseStyle(instructions);
     }

@@ -1,7 +1,6 @@
 package com.nhavronskyi.progressmebackend.ai;
 
 import com.nhavronskyi.progressmebackend.ai.ResponseStyleResolver.TONE_OVERLAY;
-import com.nhavronskyi.progressmebackend.ai.ResponseStyleResolver.TYPE_STRUCTURE;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -13,88 +12,50 @@ class ResponseStyleResolverTest {
     private final ResponseStyleResolver resolver = new ResponseStyleResolver();
 
     @ParameterizedTest
-    @EnumSource(TYPE_STRUCTURE.class)
-    void allTypesProduceNonBlankFormatting(TYPE_STRUCTURE type) {
-        ResponseStyle style = resolver.resolve(type, TONE_OVERLAY.BALANCED);
+    @EnumSource(TONE_OVERLAY.class)
+    void allTonesProduceNonBlankFormatting(TONE_OVERLAY tone) {
+        ResponseStyle style = resolver.resolve(tone);
         assertThat(style.formattingInstructions()).isNotBlank();
     }
 
     @Test
-    void analysisTypeHasTldrStructure() {
-        ResponseStyle style = resolver.resolve(TYPE_STRUCTURE.ANALYSIS, TONE_OVERLAY.BALANCED);
-        assertThat(style.formattingInstructions()).contains("TL;DR summary");
-    }
-
-    @Test
-    void weeklySummaryHasMetricsTable() {
-        ResponseStyle style = resolver.resolve(TYPE_STRUCTURE.WEEKLY_SUMMARY, TONE_OVERLAY.BALANCED);
-        assertThat(style.formattingInstructions()).contains("metrics table");
-        assertThat(style.formattingInstructions()).contains("week-over-week");
-    }
-
-    @Test
-    void warningHasSeverityAndActions() {
-        ResponseStyle style = resolver.resolve(TYPE_STRUCTURE.WARNING, TONE_OVERLAY.BALANCED);
-        assertThat(style.formattingInstructions()).contains("severity level");
-        assertThat(style.formattingInstructions()).contains("action items");
-    }
-
-    @Test
-    void predictionHasTrajectory() {
-        ResponseStyle style = resolver.resolve(TYPE_STRUCTURE.PREDICTION, TONE_OVERLAY.BALANCED);
-        assertThat(style.formattingInstructions()).contains("current trajectory");
-        assertThat(style.formattingInstructions()).contains("projected outcomes");
-    }
-
-    @Test
-    void patternHasConfidenceIndicators() {
-        ResponseStyle style = resolver.resolve(TYPE_STRUCTURE.PATTERN, TONE_OVERLAY.BALANCED);
-        assertThat(style.formattingInstructions()).contains("confidence indicators");
-        assertThat(style.formattingInstructions()).contains("correlations");
-    }
-
-    @Test
     void toneOverlayAppliesGentleStyle() {
-        ResponseStyle style = resolver.resolve(TYPE_STRUCTURE.ANALYSIS, TONE_OVERLAY.GENTLE);
+        ResponseStyle style = resolver.resolve(TONE_OVERLAY.GENTLE);
         assertThat(style.formattingInstructions()).contains("warm, narrative prose");
     }
 
     @Test
     void toneOverlayAppliesStrictStyle() {
-        ResponseStyle style = resolver.resolve(TYPE_STRUCTURE.ANALYSIS, TONE_OVERLAY.STRICT);
+        ResponseStyle style = resolver.resolve(TONE_OVERLAY.STRICT);
         assertThat(style.formattingInstructions()).contains("no-nonsense language");
     }
 
     @Test
     void toneOverlayAppliesAnalyticalStyle() {
-        ResponseStyle style = resolver.resolve(TYPE_STRUCTURE.ANALYSIS, TONE_OVERLAY.ANALYTICAL);
+        ResponseStyle style = resolver.resolve(TONE_OVERLAY.ANALYTICAL);
         assertThat(style.formattingInstructions()).contains("data tables and percentages");
     }
 
     @Test
-    void differentTypesProduceDifferentOutput() {
-        ResponseStyle analysis = resolver.resolve(TYPE_STRUCTURE.ANALYSIS, TONE_OVERLAY.BALANCED);
-        ResponseStyle warning = resolver.resolve(TYPE_STRUCTURE.WARNING, TONE_OVERLAY.BALANCED);
-        ResponseStyle pattern = resolver.resolve(TYPE_STRUCTURE.PATTERN, TONE_OVERLAY.BALANCED);
-
-        assertThat(analysis.formattingInstructions())
-                .isNotEqualTo(warning.formattingInstructions())
-                .isNotEqualTo(pattern.formattingInstructions());
+    void toneOverlayAppliesBalancedStyle() {
+        ResponseStyle style = resolver.resolve(TONE_OVERLAY.BALANCED);
+        assertThat(style.formattingInstructions()).contains("Mix narrative sentences with bullet points");
     }
 
     @Test
-    void fromStringParsesValidTypes() {
-        assertThat(TYPE_STRUCTURE.fromString("analysis")).isEqualTo(TYPE_STRUCTURE.ANALYSIS);
-        assertThat(TYPE_STRUCTURE.fromString("weekly_summary")).isEqualTo(TYPE_STRUCTURE.WEEKLY_SUMMARY);
-        assertThat(TYPE_STRUCTURE.fromString("warning")).isEqualTo(TYPE_STRUCTURE.WARNING);
-        assertThat(TYPE_STRUCTURE.fromString("prediction")).isEqualTo(TYPE_STRUCTURE.PREDICTION);
-        assertThat(TYPE_STRUCTURE.fromString("pattern")).isEqualTo(TYPE_STRUCTURE.PATTERN);
+    void differentTonesProduceDifferentOutput() {
+        ResponseStyle gentle = resolver.resolve(TONE_OVERLAY.GENTLE);
+        ResponseStyle strict = resolver.resolve(TONE_OVERLAY.STRICT);
+
+        assertThat(gentle.formattingInstructions())
+                .isNotEqualTo(strict.formattingInstructions());
     }
 
     @Test
-    void fromStringFallsBackForUnknownType() {
-        assertThat(TYPE_STRUCTURE.fromString("unknown")).isEqualTo(TYPE_STRUCTURE.ANALYSIS);
-        assertThat(TYPE_STRUCTURE.fromString(null)).isEqualTo(TYPE_STRUCTURE.ANALYSIS);
+    void formattingGuidanceIncluded() {
+        ResponseStyle style = resolver.resolve(TONE_OVERLAY.BALANCED);
+        assertThat(style.formattingInstructions()).contains("Vary your response structure naturally");
+        assertThat(style.formattingInstructions()).contains("Adapt length and format");
     }
 
     @Test

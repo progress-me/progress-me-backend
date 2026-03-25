@@ -54,6 +54,6 @@ public class AiContextService {
                 PageRequest.of(0, properties.maxContextEntries(), Sort.by(Sort.Direction.DESC, "loggedAt"))
         ).getContent();
 
-        return new AiContext(persona, settings, values, activeGoals, recentEntries, ResponseStyleResolver.TYPE_STRUCTURE.ANALYSIS);
+        return new AiContext(persona, settings, values, activeGoals, recentEntries);
     }
 }
