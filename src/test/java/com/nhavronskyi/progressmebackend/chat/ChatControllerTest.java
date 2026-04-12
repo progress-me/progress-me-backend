@@ -1,6 +1,8 @@
 package com.nhavronskyi.progressmebackend.chat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nhavronskyi.progressmebackend.ai.orchestrator.OrchestratorService;
+import com.nhavronskyi.progressmebackend.ai.orchestrator.TaskResult;
 import com.nhavronskyi.progressmebackend.auth.dto.AuthResponse;
 import com.nhavronskyi.progressmebackend.auth.dto.RegisterRequest;
 import com.nhavronskyi.progressmebackend.chat.dto.CreateSessionRequest;
@@ -41,7 +43,10 @@ class ChatControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private ChatClient chatClient;
+    private OrchestratorService orchestratorService;
+
+    @MockitoBean(name = "executionClient")
+    private ChatClient executionClient;
 
     private String token;
 
@@ -54,7 +59,8 @@ class ChatControllerTest {
                 .andReturn().getResponse().getContentAsString();
         token = objectMapper.readValue(body, AuthResponse.class).token();
 
-        mockChatClient("AI response text");
+        mockOrchestrator("AI response text");
+        mockExecutionClient("AI response text");
     }
 
     @Test
@@ -175,8 +181,13 @@ class ChatControllerTest {
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText();
     }
 
+    private void mockOrchestrator(String responseText) {
+        when(orchestratorService.processMessage(any(), any(), anyList(), any()))
+                .thenReturn(new TaskResult(responseText, null));
+    }
+
     @SuppressWarnings("unchecked")
-    private void mockChatClient(String responseText) {
+    private void mockExecutionClient(String responseText) {
         ChatClient.ChatClientRequestSpec requestSpec = mock(ChatClient.ChatClientRequestSpec.class);
         ChatClient.CallResponseSpec callSpec = mock(ChatClient.CallResponseSpec.class);
 
@@ -190,12 +201,13 @@ class ChatControllerTest {
         Generation generation = new Generation(new AssistantMessage(responseText));
         ChatResponse chatResponse = new ChatResponse(java.util.List.of(generation), metadata);
 
-        when(chatClient.prompt()).thenReturn(requestSpec);
+        when(executionClient.prompt()).thenReturn(requestSpec);
         when(requestSpec.messages(anyList())).thenReturn(requestSpec);
         when(requestSpec.system(any(String.class))).thenReturn(requestSpec);
         when(requestSpec.user(any(String.class))).thenReturn(requestSpec);
         when(requestSpec.options(any())).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callSpec);
         when(callSpec.chatResponse()).thenReturn(chatResponse);
+        when(callSpec.content()).thenReturn(responseText);
     }
 }

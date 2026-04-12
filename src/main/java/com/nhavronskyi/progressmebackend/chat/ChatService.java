@@ -1,20 +1,18 @@
 package com.nhavronskyi.progressmebackend.chat;
 
 import com.nhavronskyi.progressmebackend.ai.AiContextService;
-import com.nhavronskyi.progressmebackend.ai.SystemPromptBuilder;
 import com.nhavronskyi.progressmebackend.ai.dto.AiContext;
+import com.nhavronskyi.progressmebackend.ai.orchestrator.ActionProposal;
+import com.nhavronskyi.progressmebackend.ai.orchestrator.OrchestratorService;
+import com.nhavronskyi.progressmebackend.ai.orchestrator.TaskResult;
 import com.nhavronskyi.progressmebackend.chat.dto.ChatMessageResponse;
 import com.nhavronskyi.progressmebackend.chat.dto.ChatSessionResponse;
 import com.nhavronskyi.progressmebackend.common.ResourceNotFoundException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
@@ -29,14 +27,25 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ChatService {
 
     private final ChatSessionRepository sessionRepository;
     private final ChatMessageRepository messageRepository;
     private final AiContextService contextService;
-    private final ChatClient chatClient;
-    private final SystemPromptBuilder promptBuilder;
+    private final OrchestratorService orchestratorService;
+    private final ChatClient executionClient;
+
+    public ChatService(ChatSessionRepository sessionRepository,
+                       ChatMessageRepository messageRepository,
+                       AiContextService contextService,
+                       OrchestratorService orchestratorService,
+                       @Qualifier("executionClient") ChatClient executionClient) {
+        this.sessionRepository = sessionRepository;
+        this.messageRepository = messageRepository;
+        this.contextService = contextService;
+        this.orchestratorService = orchestratorService;
+        this.executionClient = executionClient;
+    }
 
     @Transactional
     public ChatSessionResponse createSession(UUID userId, String messageContent) {
@@ -51,36 +60,26 @@ public class ChatService {
         ChatSession session = sessionRepository.findByIdAndUserId(sessionId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Chat session not found"));
 
-        ChatMessage userMessage = messageRepository.save(
-                new ChatMessage(session, ChatMessage.Role.USER, messageContent));
+        messageRepository.save(new ChatMessage(session, ChatMessage.Role.USER, messageContent));
 
         List<ChatMessage> history = loadHistory(sessionId);
-
         AiContext context = contextService.buildContext(userId);
-        String systemPrompt = promptBuilder.build(context);
-
-        List<Message> messages = buildMessageList(systemPrompt, history);
 
         log.info("Sending chat message for user={}, session={}, historySize={}",
                 userId, sessionId, history.size());
 
-        ChatResponse chatResponse = chatClient.prompt()
-                .messages(messages)
-                .call()
-                .chatResponse();
+        TaskResult result = orchestratorService.processMessage(userId, messageContent, history, context);
 
-        String responseText = Optional.ofNullable(chatResponse)
-                .map(ChatResponse::getResult)
-                .map(Generation::getOutput)
-                .map(org.springframework.ai.chat.messages.AbstractMessage::getText)
-                .orElseThrow(() -> new IllegalStateException("Empty AI response"));
+        ChatMessage assistantMessage = new ChatMessage(session, ChatMessage.Role.ASSISTANT, result.responseText());
 
-        int tokens = chatResponse.getMetadata().getUsage().getTotalTokens();
+        ActionProposal proposal = result.proposal();
+        if (proposal != null) {
+            assistantMessage.setActionType(proposal.taskType().name());
+            assistantMessage.setActionPayload(proposal.payload());
+            assistantMessage.setActionStatus(ChatMessage.ActionStatus.PROPOSED.name());
+        }
 
-        ChatMessage assistantMessage = new ChatMessage(session, ChatMessage.Role.ASSISTANT, responseText);
-        assistantMessage.setTokensUsed(tokens);
         messageRepository.save(assistantMessage);
-
         return ChatMessageResponse.from(assistantMessage);
     }
 
@@ -107,7 +106,7 @@ public class ChatService {
                     "User: " + userMessage.substring(0, Math.min(userMessage.length(), 500)) + "\n" +
                     "Assistant: " + assistantResponse.substring(0, Math.min(assistantResponse.length(), 500));
 
-            ChatResponse response = chatClient.prompt()
+            ChatResponse response = executionClient.prompt()
                     .user(titlePrompt)
                     .call()
                     .chatResponse();
@@ -138,16 +137,4 @@ public class ChatService {
         return chronological;
     }
 
-    private List<Message> buildMessageList(String systemPrompt, List<ChatMessage> history) {
-        List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(systemPrompt));
-        for (ChatMessage chatMessage : history) {
-            Message message = switch (chatMessage.getRole()) {
-                case USER -> new UserMessage(chatMessage.getContent());
-                case ASSISTANT -> new AssistantMessage(chatMessage.getContent());
-            };
-            messages.add(message);
-        }
-        return messages;
-    }
 }
