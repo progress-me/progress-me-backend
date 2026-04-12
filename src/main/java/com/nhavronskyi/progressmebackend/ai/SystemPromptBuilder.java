@@ -133,7 +133,7 @@ public class SystemPromptBuilder {
 
     private String buildValues(List<UserValue> values) {
         if (values.isEmpty()) {
-            return "";
+            return "## User's personal values\nNo values defined yet. Do not fabricate or assume any values.\n\n";
         }
 
         String valueList = values.stream()
@@ -150,7 +150,7 @@ public class SystemPromptBuilder {
 
     private String buildGoals(List<Goal> goals) {
         if (goals.isEmpty()) {
-            return "";
+            return "## Active goals\nNo goals set yet. Do not fabricate or assume any goals.\n\n";
         }
 
         String goalList = goals.stream()
@@ -176,7 +176,14 @@ public class SystemPromptBuilder {
 
     private String buildEntries(List<LogEntry> entries) {
         if (entries.isEmpty()) {
-            return "";
+            return """
+                    ## Recent log entries
+                    No journal entries yet. If the user asks for analysis, patterns, or trends, \
+                    clearly state that there is not enough data to analyze. Do not fabricate or \
+                    assume any entries, moods, or activities. Instead, encourage the user to \
+                    start journaling.
+
+                    """;
         }
 
         String entryList = entries.stream()

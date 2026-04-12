@@ -67,9 +67,10 @@ class SystemPromptBuilderTest {
         );
         String prompt = builder.build(context);
 
-        assertThat(prompt).doesNotContain("personal values");
-        assertThat(prompt).doesNotContain("Active goals");
-        assertThat(prompt).doesNotContain("Recent log entries");
+        assertThat(prompt).contains("No values defined yet");
+        assertThat(prompt).contains("No goals set yet");
+        assertThat(prompt).contains("No journal entries yet");
+        assertThat(prompt).contains("Do not fabricate");
     }
 
     @Test
