@@ -7,8 +7,6 @@ import com.nhavronskyi.progressmebackend.cache.CacheEvictionService;
 import com.nhavronskyi.progressmebackend.goal.Goal;
 import com.nhavronskyi.progressmebackend.goal.GoalRepository;
 import com.nhavronskyi.progressmebackend.log.dto.*;
-import com.nhavronskyi.progressmebackend.value.UserValue;
-import com.nhavronskyi.progressmebackend.value.UserValueRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,7 +23,6 @@ import java.util.stream.Collectors;
 public class LogEntryService {
 
     private final LogEntryRepository repository;
-    private final UserValueRepository valueRepository;
     private final GoalRepository goalRepository;
     private final CategoryRepository categoryRepository;
     private final CacheEvictionService cacheEvictionService;
@@ -48,9 +44,9 @@ public class LogEntryService {
             entry.setGoals(goals);
         }
 
-        if (request.tagValueIds() != null && !request.tagValueIds().isEmpty()) {
-            Set<UserValue> tags = resolveValues(userId, request.tagValueIds());
-            entry.setTags(tags);
+        if (request.categoryIds() != null && !request.categoryIds().isEmpty()) {
+            Set<Category> categories = resolveCategories(userId, request.categoryIds());
+            entry.setCategories(categories);
         }
 
         LogEntry saved = repository.save(entry);
@@ -79,22 +75,7 @@ public class LogEntryService {
                     pageable.getPageNumber(), pageable.getPageSize(),
                     org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "loggedAt"));
         }
-        Page<LogEntry> page = repository.findAll(spec, pageable);
-        List<LogEntry> entries = page.getContent();
-        if (entries.isEmpty()) {
-            return page.map(this::toResponse);
-        }
-
-        // Batch-load all category IDs referenced by tags across all entries
-        // (@BatchSize on goals/tags handles their lazy loading in batch)
-        Set<UUID> allCatIds = entries.stream()
-                .flatMap(e -> e.getTags().stream())
-                .map(UserValue::getCategoryId)
-                .collect(Collectors.toSet());
-        Map<UUID, Category> catById = categoryRepository.findAllById(allCatIds).stream()
-                .collect(Collectors.toMap(Category::getId, Function.identity()));
-
-        return page.map(entry -> toResponseWithCategories(entry, catById));
+        return repository.findAll(spec, pageable).map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -121,8 +102,8 @@ public class LogEntryService {
         if (request.goalIds() != null) {
             entry.setGoals(resolveGoals(userId, request.goalIds()));
         }
-        if (request.tagValueIds() != null) {
-            entry.setTags(resolveValues(userId, request.tagValueIds()));
+        if (request.categoryIds() != null) {
+            entry.setCategories(resolveCategories(userId, request.categoryIds()));
         }
         LogEntryResponse response = toResponse(repository.save(entry));
         cacheEvictionService.evictDashboard(userId);
@@ -130,12 +111,12 @@ public class LogEntryService {
     }
 
     @Transactional
-    public LogEntryResponse updateTags(UUID userId, UUID entryId, UpdateEntryTagsRequest request) {
+    public LogEntryResponse updateCategories(UUID userId, UUID entryId, UpdateEntryCategoriesRequest request) {
         LogEntry entry = repository.findByIdAndUserId(entryId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Log entry not found"));
 
-        Set<UserValue> tags = resolveValues(userId, request.valueIds());
-        entry.setTags(tags);
+        Set<Category> categories = resolveCategories(userId, request.categoryIds());
+        entry.setCategories(categories);
         LogEntryResponse response = toResponse(repository.save(entry));
         cacheEvictionService.evictDashboard(userId);
         return response;
@@ -150,29 +131,15 @@ public class LogEntryService {
     }
 
     private LogEntryResponse toResponse(LogEntry entry) {
-        Set<UUID> catIds = entry.getTags().stream()
-                .map(UserValue::getCategoryId)
-                .collect(Collectors.toSet());
-        Map<UUID, Category> catById = categoryRepository.findAllById(catIds).stream()
-                .collect(Collectors.toMap(Category::getId, Function.identity()));
-        return toResponseWithCategories(entry, catById);
-    }
-
-    private LogEntryResponse toResponseWithCategories(LogEntry entry, Map<UUID, Category> catById) {
         List<LogEntryResponse.GoalInfo> goalInfos = entry.getGoals().stream()
                 .map(g -> new LogEntryResponse.GoalInfo(g.getId(), g.getTitle(), g.isDefault()))
                 .toList();
 
-        List<TagResponse> tags = entry.getTags().stream()
-                .map(v -> {
-                    Category cat = catById.get(v.getCategoryId());
-                    return new TagResponse(v.getId(), v.getName(),
-                            cat != null ? cat.getName() : "",
-                            cat != null ? cat.getColor() : null);
-                })
+        List<LogEntryResponse.CategoryInfo> categoryInfos = entry.getCategories().stream()
+                .map(c -> new LogEntryResponse.CategoryInfo(c.getId(), c.getName(), c.getColor()))
                 .toList();
 
-        return LogEntryResponse.from(entry, goalInfos, tags);
+        return LogEntryResponse.from(entry, goalInfos, categoryInfos);
     }
 
     private Set<Goal> resolveGoals(UUID userId, List<UUID> goalIds) {
@@ -182,10 +149,10 @@ public class LogEntryService {
                 .collect(Collectors.toSet());
     }
 
-    private Set<UserValue> resolveValues(UUID userId, List<UUID> valueIds) {
-        return valueIds.stream()
-                .map(id -> valueRepository.findByIdAndUserId(id, userId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Value not found: " + id)))
+    private Set<Category> resolveCategories(UUID userId, List<UUID> categoryIds) {
+        return categoryIds.stream()
+                .map(id -> categoryRepository.findByIdAndUserId(id, userId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id)))
                 .collect(Collectors.toSet());
     }
 

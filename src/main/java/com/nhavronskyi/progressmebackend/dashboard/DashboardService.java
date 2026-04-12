@@ -40,10 +40,10 @@ public class DashboardService {
                 logEntryRepository.avgEnergyInPeriod(userId, fromDateTime, toDateTime));
         GoalSummary goalSummary = buildGoalSummary(userId);
         StreakInfo streak = calculateStreak(logEntryRepository.distinctLoggedDates(userId));
-        List<TopValueInfo> topValues = buildTopValues(userId, fromDateTime, toDateTime);
+        List<TopCategoryInfo> topCategories = buildTopCategories(userId, fromDateTime, toDateTime);
 
         return new DashboardResponse(periodInfo, entryStats, moodTrend, energyTrend,
-                goalSummary, streak, topValues);
+                goalSummary, streak, topCategories);
     }
 
     private EntryStats buildEntryStats(UUID userId, OffsetDateTime from, OffsetDateTime to) {
@@ -127,14 +127,13 @@ public class DashboardService {
         return new StreakInfo(current, longest);
     }
 
-    private List<TopValueInfo> buildTopValues(UUID userId, OffsetDateTime from, OffsetDateTime to) {
-        return logEntryRepository.topValuesInPeriod(userId, from, to).stream()
-                .map(row -> new TopValueInfo(
+    private List<TopCategoryInfo> buildTopCategories(UUID userId, OffsetDateTime from, OffsetDateTime to) {
+        return logEntryRepository.topCategoriesInPeriod(userId, from, to).stream()
+                .map(row -> new TopCategoryInfo(
                         toUUID(row[0]),
                         (String) row[1],
                         (String) row[2],
-                        (String) row[3],
-                        ((Number) row[4]).longValue()
+                        ((Number) row[3]).longValue()
                 ))
                 .toList();
     }

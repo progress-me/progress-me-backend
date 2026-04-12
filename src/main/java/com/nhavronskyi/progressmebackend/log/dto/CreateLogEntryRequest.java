@@ -16,6 +16,6 @@ public record CreateLogEntryRequest(
         @Min(1) @Max(10) Integer energy,
         OffsetDateTime loggedAt,
         List<UUID> goalIds,
-        List<UUID> tagValueIds
+        List<UUID> categoryIds
 ) {
 }

@@ -2,7 +2,7 @@ package com.nhavronskyi.progressmebackend.log;
 
 import com.nhavronskyi.progressmebackend.log.dto.CreateLogEntryRequest;
 import com.nhavronskyi.progressmebackend.log.dto.LogEntryResponse;
-import com.nhavronskyi.progressmebackend.log.dto.UpdateEntryTagsRequest;
+import com.nhavronskyi.progressmebackend.log.dto.UpdateEntryCategoriesRequest;
 import com.nhavronskyi.progressmebackend.log.dto.UpdateLogEntryRequest;
 import com.nhavronskyi.progressmebackend.user.User;
 import jakarta.validation.Valid;
@@ -63,13 +63,13 @@ public class LogEntryController {
         return ResponseEntity.ok(service.update(user.getId(), id, request));
     }
 
-    @PutMapping("/{id}/tags")
-    public ResponseEntity<LogEntryResponse> updateTags(
+    @PutMapping("/{id}/categories")
+    public ResponseEntity<LogEntryResponse> updateCategories(
             @AuthenticationPrincipal User user,
             @PathVariable UUID id,
-            @RequestBody @Valid UpdateEntryTagsRequest request
+            @RequestBody @Valid UpdateEntryCategoriesRequest request
     ) {
-        return ResponseEntity.ok(service.updateTags(user.getId(), id, request));
+        return ResponseEntity.ok(service.updateCategories(user.getId(), id, request));
     }
 
     @DeleteMapping("/{id}")

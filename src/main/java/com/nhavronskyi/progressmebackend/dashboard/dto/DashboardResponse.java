@@ -12,7 +12,7 @@ public record DashboardResponse(
         MetricTrend energyTrend,
         GoalSummary goalSummary,
         StreakInfo streak,
-        List<TopValueInfo> topValues
+        List<TopCategoryInfo> topCategories
 ) {
 
     public record PeriodInfo(int days, LocalDate from, LocalDate to) {}
@@ -31,5 +31,5 @@ public record DashboardResponse(
 
     public record StreakInfo(int current, int longest) {}
 
-    public record TopValueInfo(UUID id, String name, String categoryName, String categoryColor, long count) {}
+    public record TopCategoryInfo(UUID id, String name, String color, long count) {}
 }

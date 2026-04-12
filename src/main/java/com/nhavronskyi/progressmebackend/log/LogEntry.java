@@ -1,7 +1,7 @@
 package com.nhavronskyi.progressmebackend.log;
 
+import com.nhavronskyi.progressmebackend.category.Category;
 import com.nhavronskyi.progressmebackend.goal.Goal;
-import com.nhavronskyi.progressmebackend.value.UserValue;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -57,12 +57,12 @@ public class LogEntry {
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-            name = "entry_tags",
+            name = "entry_categories",
             joinColumns = @JoinColumn(name = "entry_id"),
-            inverseJoinColumns = @JoinColumn(name = "value_id")
+            inverseJoinColumns = @JoinColumn(name = "category_id")
     )
     @BatchSize(size = 50)
-    private Set<UserValue> tags = new HashSet<>();
+    private Set<Category> categories = new HashSet<>();
 
     @PreUpdate
     void onUpdate() {

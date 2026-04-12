@@ -50,7 +50,6 @@ class CategoryControllerTest {
                 .andExpect(jsonPath("$.name").value("Health"))
                 .andExpect(jsonPath("$.color").value("#27AE60"))
                 .andExpect(jsonPath("$.sortOrder").value(0))
-                .andExpect(jsonPath("$.values").isEmpty())
                 .andExpect(jsonPath("$.id").isNotEmpty());
     }
 
@@ -101,8 +100,7 @@ class CategoryControllerTest {
         mockMvc.perform(get("/api/categories/" + id)
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Health"))
-                .andExpect(jsonPath("$.values").isEmpty());
+                .andExpect(jsonPath("$.name").value("Health"));
     }
 
     @Test

@@ -14,7 +14,7 @@ public record LogEntryResponse(
         String content,
         Integer mood,
         Integer energy,
-        List<TagResponse> tags,
+        List<CategoryInfo> categories,
         OffsetDateTime loggedAt,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
@@ -22,7 +22,9 @@ public record LogEntryResponse(
 
     public record GoalInfo(UUID id, String title, boolean isDefault) {}
 
-    public static LogEntryResponse from(LogEntry entry, List<GoalInfo> goals, List<TagResponse> tags) {
+    public record CategoryInfo(UUID id, String name, String color) {}
+
+    public static LogEntryResponse from(LogEntry entry, List<GoalInfo> goals, List<CategoryInfo> categories) {
         return new LogEntryResponse(
                 entry.getId(),
                 entry.getUserId(),
@@ -31,7 +33,7 @@ public record LogEntryResponse(
                 entry.getContent(),
                 entry.getMood(),
                 entry.getEnergy(),
-                tags,
+                categories,
                 entry.getLoggedAt(),
                 entry.getCreatedAt(),
                 entry.getUpdatedAt()

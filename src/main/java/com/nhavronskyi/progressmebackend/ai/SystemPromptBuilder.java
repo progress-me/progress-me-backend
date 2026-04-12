@@ -1,10 +1,10 @@
 package com.nhavronskyi.progressmebackend.ai;
 
 import com.nhavronskyi.progressmebackend.ai.dto.AiContext;
+import com.nhavronskyi.progressmebackend.category.Category;
 import com.nhavronskyi.progressmebackend.goal.Goal;
 import com.nhavronskyi.progressmebackend.log.LogEntry;
 import com.nhavronskyi.progressmebackend.persona.dto.PersonaResponse;
-import com.nhavronskyi.progressmebackend.value.UserValue;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -25,7 +25,7 @@ public class SystemPromptBuilder {
         ResponseStyle style = styleResolver.resolve(context.aiSettings().tone());
         return buildRole(context.aiSettings(), style) +
                 buildPersona(context.persona()) +
-                buildValues(context.values()) +
+                buildCategories(context.categories()) +
                 buildGoals(context.activeGoals()) +
                 buildEntries(context.recentEntries()) +
                 buildInstructions(context.aiSettings());
@@ -131,21 +131,21 @@ public class SystemPromptBuilder {
         return sb.toString();
     }
 
-    private String buildValues(List<UserValue> values) {
-        if (values.isEmpty()) {
-            return "## User's personal values\nNo values defined yet. Do not fabricate or assume any values.\n\n";
+    private String buildCategories(List<Category> categories) {
+        if (categories.isEmpty()) {
+            return "## User's focus categories\nNo categories defined yet. Do not fabricate or assume any categories.\n\n";
         }
 
-        String valueList = values.stream()
-                .map(v -> "- " + v.getName() + (v.getDescription() != null ? ": " + v.getDescription() : ""))
+        String categoryList = categories.stream()
+                .map(c -> "- " + c.getName() + (c.getDescription() != null ? ": " + c.getDescription() : ""))
                 .collect(Collectors.joining("\n"));
 
         return """
-                ## User's personal values
+                ## User's focus categories
                 %s
-                
-                
-                """.formatted(valueList);
+
+
+                """.formatted(categoryList);
     }
 
     private String buildGoals(List<Goal> goals) {
@@ -169,8 +169,8 @@ public class SystemPromptBuilder {
         return """
                 ## Active goals
                 %s
-                
-                
+
+
                 """.formatted(goalList);
     }
 
@@ -202,8 +202,8 @@ public class SystemPromptBuilder {
         return """
                 ## Recent log entries (newest first)
                 %s
-                
-                
+
+
                 """.formatted(entryList);
     }
 
@@ -229,9 +229,9 @@ public class SystemPromptBuilder {
     }
 
     public String buildContextSummary(AiContext context) {
-        return "%d entries, %d values, %d goals".formatted(
+        return "%d entries, %d categories, %d goals".formatted(
                 context.recentEntries().size(),
-                context.values().size(),
+                context.categories().size(),
                 context.activeGoals().size()
         );
     }

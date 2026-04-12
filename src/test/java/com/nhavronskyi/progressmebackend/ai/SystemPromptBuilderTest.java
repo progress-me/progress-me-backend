@@ -3,10 +3,10 @@ package com.nhavronskyi.progressmebackend.ai;
 import com.nhavronskyi.progressmebackend.ai.ResponseStyleResolver.TONE_OVERLAY;
 import com.nhavronskyi.progressmebackend.ai.dto.AiContext;
 import com.nhavronskyi.progressmebackend.ai.dto.AiContext.AiSettingsSnapshot;
+import com.nhavronskyi.progressmebackend.category.Category;
 import com.nhavronskyi.progressmebackend.goal.Goal;
 import com.nhavronskyi.progressmebackend.log.LogEntry;
 import com.nhavronskyi.progressmebackend.persona.dto.PersonaResponse;
-import com.nhavronskyi.progressmebackend.value.UserValue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -32,7 +32,7 @@ class SystemPromptBuilderTest {
         assertThat(prompt).contains("balanced");
         assertThat(prompt).contains("About the user");
         assertThat(prompt).contains("Test User");
-        assertThat(prompt).contains("personal values");
+        assertThat(prompt).contains("focus categories");
         assertThat(prompt).contains("Health");
         assertThat(prompt).contains("Active goals");
         assertThat(prompt).contains("Run a marathon");
@@ -67,7 +67,7 @@ class SystemPromptBuilderTest {
         );
         String prompt = builder.build(context);
 
-        assertThat(prompt).contains("No values defined yet");
+        assertThat(prompt).contains("No categories defined yet");
         assertThat(prompt).contains("No goals set yet");
         assertThat(prompt).contains("No journal entries yet");
         assertThat(prompt).contains("Do not fabricate");
@@ -107,7 +107,7 @@ class SystemPromptBuilderTest {
         AiContext context = createFullContext();
         String summary = builder.buildContextSummary(context);
 
-        assertThat(summary).isEqualTo("1 entries, 1 values, 1 goals");
+        assertThat(summary).isEqualTo("1 entries, 1 categories, 1 goals");
     }
 
     static Stream<Arguments> toneStrictnessRoleCombinations() {
@@ -164,9 +164,9 @@ class SystemPromptBuilderTest {
                 null, null, "Test User", 25, "A developer", "Coding", null, null, null, null
         );
 
-        UserValue value = new UserValue();
-        value.setName("Health");
-        value.setDescription("Stay fit and healthy");
+        Category category = new Category();
+        category.setName("Health");
+        category.setDescription("Stay fit and healthy");
 
         Goal goal = new Goal();
         goal.setTitle("Run a marathon");
@@ -181,7 +181,7 @@ class SystemPromptBuilderTest {
         entry.setEnergy(7);
         entry.setLoggedAt(OffsetDateTime.now());
 
-        return new AiContext(persona, defaultSettings(), List.of(value), List.of(goal), List.of(entry));
+        return new AiContext(persona, defaultSettings(), List.of(category), List.of(goal), List.of(entry));
     }
 
     private AiSettingsSnapshot defaultSettings() {

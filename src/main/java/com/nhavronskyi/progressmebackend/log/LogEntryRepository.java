@@ -52,18 +52,17 @@ public interface LogEntryRepository extends JpaRepository<LogEntry, UUID>, JpaSp
                                           @Param("from") OffsetDateTime from,
                                           @Param("to") OffsetDateTime to);
 
-    @Query(value = "SELECT v.id, v.name, c.name as cat_name, c.color as cat_color, COUNT(*) as cnt " +
-            "FROM entry_tags et " +
-            "JOIN user_values v ON et.value_id = v.id " +
-            "JOIN categories c ON v.category_id = c.id " +
-            "JOIN log_entries le ON et.entry_id = le.id " +
+    @Query(value = "SELECT c.id, c.name, c.color, COUNT(*) as cnt " +
+            "FROM entry_categories ec " +
+            "JOIN categories c ON ec.category_id = c.id " +
+            "JOIN log_entries le ON ec.entry_id = le.id " +
             "WHERE le.user_id = :userId AND le.logged_at >= :from AND le.logged_at <= :to " +
-            "GROUP BY v.id, v.name, c.name, c.color " +
+            "GROUP BY c.id, c.name, c.color " +
             "ORDER BY cnt DESC " +
             "FETCH FIRST 10 ROWS ONLY", nativeQuery = true)
-    List<Object[]> topValuesInPeriod(@Param("userId") UUID userId,
-                                     @Param("from") OffsetDateTime from,
-                                     @Param("to") OffsetDateTime to);
+    List<Object[]> topCategoriesInPeriod(@Param("userId") UUID userId,
+                                         @Param("from") OffsetDateTime from,
+                                         @Param("to") OffsetDateTime to);
 
     @Query(value = "SELECT AVG(mood) FROM log_entries " +
             "WHERE user_id = :userId AND mood IS NOT NULL AND logged_at >= :from AND logged_at <= :to",

@@ -60,7 +60,7 @@ class DashboardControllerTest {
                 .andExpect(jsonPath("$.goalSummary.items").isEmpty())
                 .andExpect(jsonPath("$.streak.current").value(0))
                 .andExpect(jsonPath("$.streak.longest").value(0))
-                .andExpect(jsonPath("$.topValues").isEmpty());
+                .andExpect(jsonPath("$.topCategories").isEmpty());
     }
 
     @Test

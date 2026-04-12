@@ -147,23 +147,20 @@ class LogEntryControllerTest {
     }
 
     @Test
-    void createEntryWithTags() throws Exception {
-        // Create category + value
+    void createEntryWithCategories() throws Exception {
         String catId = createCategoryHelper("Focus");
-        String valueId = createValueHelper(catId, "Discipline");
 
         String json = """
-                {"type":"journal","content":"Tagged entry","tagValueIds":["%s"]}
-                """.formatted(valueId);
+                {"type":"journal","content":"Tagged entry","categoryIds":["%s"]}
+                """.formatted(catId);
 
         mockMvc.perform(post("/api/log-entries")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.tags.length()").value(1))
-                .andExpect(jsonPath("$.tags[0].name").value("Discipline"))
-                .andExpect(jsonPath("$.tags[0].categoryName").value("Focus"));
+                .andExpect(jsonPath("$.categories.length()").value(1))
+                .andExpect(jsonPath("$.categories[0].name").value("Focus"));
     }
 
     @Test
@@ -184,32 +181,30 @@ class LogEntryControllerTest {
     }
 
     @Test
-    void updateEntryTags() throws Exception {
+    void updateEntryCategories() throws Exception {
         String entryId = createEntry("journal", "Entry",  5,  5);
         String catId = createCategoryHelper("Health");
-        String valueId = createValueHelper(catId, "Fitness");
 
         String json = """
-                {"valueIds":["%s"]}
-                """.formatted(valueId);
+                {"categoryIds":["%s"]}
+                """.formatted(catId);
 
-        mockMvc.perform(put("/api/log-entries/" + entryId + "/tags")
+        mockMvc.perform(put("/api/log-entries/" + entryId + "/categories")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tags.length()").value(1))
-                .andExpect(jsonPath("$.tags[0].name").value("Fitness"));
+                .andExpect(jsonPath("$.categories.length()").value(1))
+                .andExpect(jsonPath("$.categories[0].name").value("Health"));
     }
 
     @Test
-    void listEntriesIncludesTags() throws Exception {
+    void listEntriesIncludesCategories() throws Exception {
         String catId = createCategoryHelper("Career");
-        String valueId = createValueHelper(catId, "Growth");
 
         String json = """
-                {"type":"journal","content":"With tags","tagValueIds":["%s"]}
-                """.formatted(valueId);
+                {"type":"journal","content":"With categories","categoryIds":["%s"]}
+                """.formatted(catId);
         mockMvc.perform(post("/api/log-entries")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -219,8 +214,8 @@ class LogEntryControllerTest {
         mockMvc.perform(get("/api/log-entries")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].tags.length()").value(1))
-                .andExpect(jsonPath("$.content[0].tags[0].name").value("Growth"));
+                .andExpect(jsonPath("$.content[0].categories.length()").value(1))
+                .andExpect(jsonPath("$.content[0].categories[0].name").value("Career"));
     }
 
     private String createEntry(String type, String content, Integer mood, Integer energy) throws Exception {
@@ -239,18 +234,6 @@ class LogEntryControllerTest {
                 {"name":"%s","color":"#FF5733"}
                 """.formatted(name);
         String body = mockMvc.perform(post("/api/categories")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json))
-                .andReturn().getResponse().getContentAsString();
-        return objectMapper.readTree(body).get("id").asText();
-    }
-
-    private String createValueHelper(String categoryId, String name) throws Exception {
-        String json = """
-                {"name":"%s"}
-                """.formatted(name);
-        String body = mockMvc.perform(post("/api/categories/" + categoryId + "/values")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))

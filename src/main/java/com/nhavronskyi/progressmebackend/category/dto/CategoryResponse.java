@@ -1,10 +1,8 @@
 package com.nhavronskyi.progressmebackend.category.dto;
 
 import com.nhavronskyi.progressmebackend.category.Category;
-import com.nhavronskyi.progressmebackend.value.dto.ValueResponse;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.UUID;
 
 public record CategoryResponse(
@@ -14,11 +12,10 @@ public record CategoryResponse(
         String color,
         String icon,
         Integer sortOrder,
-        List<ValueResponse> values,
         OffsetDateTime createdAt
 ) {
 
-    public static CategoryResponse from(Category category, List<ValueResponse> values) {
+    public static CategoryResponse from(Category category) {
         return new CategoryResponse(
                 category.getId(),
                 category.getName(),
@@ -26,7 +23,6 @@ public record CategoryResponse(
                 category.getColor(),
                 category.getIcon(),
                 category.getSortOrder(),
-                values,
                 category.getCreatedAt()
         );
     }
