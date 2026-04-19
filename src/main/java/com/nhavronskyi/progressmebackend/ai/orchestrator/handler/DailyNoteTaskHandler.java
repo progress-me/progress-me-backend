@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhavronskyi.progressmebackend.ai.dto.AiContext;
 import com.nhavronskyi.progressmebackend.ai.orchestrator.ActionProposal;
+import com.nhavronskyi.progressmebackend.ai.orchestrator.StreamingTaskResult;
 import com.nhavronskyi.progressmebackend.ai.orchestrator.TaskHandler;
 import com.nhavronskyi.progressmebackend.ai.orchestrator.TaskResult;
 import com.nhavronskyi.progressmebackend.ai.orchestrator.TaskType;
@@ -19,6 +20,7 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -51,19 +53,7 @@ public class DailyNoteTaskHandler implements TaskHandler {
     public TaskResult handle(UUID userId, String userMessage, List<ChatMessage> history, AiContext context) {
         LogEntry existingEntry = findTodayEntry(context.recentEntries());
         String systemPrompt = buildNotePrompt(context, existingEntry);
-
-        List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(systemPrompt));
-
-        int historyStart = Math.max(0, history.size() - 10);
-        for (int i = historyStart; i < history.size(); i++) {
-            ChatMessage chatMessage = history.get(i);
-            Message message = switch (chatMessage.getRole()) {
-                case USER -> new UserMessage(chatMessage.getContent());
-                case ASSISTANT -> new AssistantMessage(chatMessage.getContent());
-            };
-            messages.add(message);
-        }
+        List<Message> messages = buildMessages(systemPrompt, history);
 
         String response = executionClient.prompt()
                 .messages(messages)
@@ -71,6 +61,47 @@ public class DailyNoteTaskHandler implements TaskHandler {
                 .content();
 
         return parseResponse(response, context.categories(), existingEntry);
+    }
+
+    @Override
+    public StreamingTaskResult handleStream(UUID userId, String userMessage,
+                                             List<ChatMessage> history, AiContext context) {
+        LogEntry existingEntry = findTodayEntry(context.recentEntries());
+        String systemPrompt = buildNotePrompt(context, existingEntry);
+
+        List<Message> messages = buildMessages(systemPrompt, history);
+
+        Flux<String> tokenStream = executionClient.prompt()
+                .messages(messages)
+                .stream()
+                .content()
+                .filter(text -> text != null && !text.isEmpty());
+
+        List<Category> categories = context.categories();
+        return new StreamingTaskResult(tokenStream,
+                fullText -> parseResponse(fullText, categories, existingEntry));
+    }
+
+    @Override
+    public StreamingTaskResult handleStreamWithPriorProposal(UUID userId, String userMessage,
+                                                              List<ChatMessage> history, AiContext context,
+                                                              Map<String, Object> priorPayload) {
+        String systemPrompt = buildEditPrompt(context, priorPayload);
+
+        List<Message> messages = new ArrayList<>();
+        messages.add(new SystemMessage(systemPrompt));
+        messages.add(new UserMessage(userMessage));
+
+        Flux<String> tokenStream = executionClient.prompt()
+                .messages(messages)
+                .stream()
+                .content()
+                .filter(text -> text != null && !text.isEmpty());
+
+        LogEntry existingEntry = findTodayEntry(context.recentEntries());
+        List<Category> categories = context.categories();
+        return new StreamingTaskResult(tokenStream,
+                fullText -> parseResponse(fullText, categories, existingEntry));
     }
 
     @Override
@@ -90,6 +121,22 @@ public class DailyNoteTaskHandler implements TaskHandler {
 
         LogEntry existingEntry = findTodayEntry(context.recentEntries());
         return parseResponse(response, context.categories(), existingEntry);
+    }
+
+    private List<Message> buildMessages(String systemPrompt, List<ChatMessage> history) {
+        List<Message> messages = new ArrayList<>();
+        messages.add(new SystemMessage(systemPrompt));
+
+        int historyStart = Math.max(0, history.size() - 10);
+        for (int i = historyStart; i < history.size(); i++) {
+            ChatMessage chatMessage = history.get(i);
+            Message message = switch (chatMessage.getRole()) {
+                case USER -> new UserMessage(chatMessage.getContent());
+                case ASSISTANT -> new AssistantMessage(chatMessage.getContent());
+            };
+            messages.add(message);
+        }
+        return messages;
     }
 
     private String buildNotePrompt(AiContext context, LogEntry existingEntry) {

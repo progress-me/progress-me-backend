@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhavronskyi.progressmebackend.ai.dto.AiContext;
 import com.nhavronskyi.progressmebackend.ai.orchestrator.ActionProposal;
+import com.nhavronskyi.progressmebackend.ai.orchestrator.StreamingTaskResult;
 import com.nhavronskyi.progressmebackend.ai.orchestrator.TaskHandler;
 import com.nhavronskyi.progressmebackend.ai.orchestrator.TaskResult;
 import com.nhavronskyi.progressmebackend.ai.orchestrator.TaskType;
@@ -19,6 +20,7 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -46,19 +48,7 @@ public class GoalManagementTaskHandler implements TaskHandler {
     @Override
     public TaskResult handle(UUID userId, String userMessage, List<ChatMessage> history, AiContext context) {
         String systemPrompt = buildGoalPrompt(context);
-
-        List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(systemPrompt));
-
-        int historyStart = Math.max(0, history.size() - 10);
-        for (int i = historyStart; i < history.size(); i++) {
-            ChatMessage chatMessage = history.get(i);
-            Message message = switch (chatMessage.getRole()) {
-                case USER -> new UserMessage(chatMessage.getContent());
-                case ASSISTANT -> new AssistantMessage(chatMessage.getContent());
-            };
-            messages.add(message);
-        }
+        List<Message> messages = buildMessages(systemPrompt, history);
 
         String response = executionClient.prompt()
                 .messages(messages)
@@ -66,6 +56,55 @@ public class GoalManagementTaskHandler implements TaskHandler {
                 .content();
 
         return parseResponse(response, context);
+    }
+
+    @Override
+    public StreamingTaskResult handleStream(UUID userId, String userMessage,
+                                             List<ChatMessage> history, AiContext context) {
+        String systemPrompt = buildGoalPrompt(context);
+        List<Message> messages = buildMessages(systemPrompt, history);
+
+        Flux<String> tokenStream = executionClient.prompt()
+                .messages(messages)
+                .stream()
+                .content()
+                .filter(text -> text != null && !text.isEmpty());
+
+        return new StreamingTaskResult(tokenStream, fullText -> parseResponse(fullText, context));
+    }
+
+    @Override
+    public StreamingTaskResult handleStreamWithPriorProposal(UUID userId, String userMessage,
+                                                              List<ChatMessage> history, AiContext context,
+                                                              Map<String, Object> priorPayload) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("""
+                You are a goal management assistant. The user wants to modify a previously proposed goal action.
+                Here is the prior proposal:
+
+                """);
+
+        try {
+            sb.append(objectMapper.writeValueAsString(priorPayload));
+        } catch (JsonProcessingException exception) {
+            sb.append(priorPayload.toString());
+        }
+
+        sb.append("\n\nApply the user's requested changes to this proposal.\n\n");
+        appendGoalContext(sb, context);
+        appendResponseFormat(sb);
+
+        List<Message> messages = new ArrayList<>();
+        messages.add(new SystemMessage(sb.toString()));
+        messages.add(new UserMessage(userMessage));
+
+        Flux<String> tokenStream = executionClient.prompt()
+                .messages(messages)
+                .stream()
+                .content()
+                .filter(text -> text != null && !text.isEmpty());
+
+        return new StreamingTaskResult(tokenStream, fullText -> parseResponse(fullText, context));
     }
 
     @Override
@@ -99,6 +138,22 @@ public class GoalManagementTaskHandler implements TaskHandler {
                 .content();
 
         return parseResponse(response, context);
+    }
+
+    private List<Message> buildMessages(String systemPrompt, List<ChatMessage> history) {
+        List<Message> messages = new ArrayList<>();
+        messages.add(new SystemMessage(systemPrompt));
+
+        int historyStart = Math.max(0, history.size() - 10);
+        for (int i = historyStart; i < history.size(); i++) {
+            ChatMessage chatMessage = history.get(i);
+            Message message = switch (chatMessage.getRole()) {
+                case USER -> new UserMessage(chatMessage.getContent());
+                case ASSISTANT -> new AssistantMessage(chatMessage.getContent());
+            };
+            messages.add(message);
+        }
+        return messages;
     }
 
     private String buildGoalPrompt(AiContext context) {

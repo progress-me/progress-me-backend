@@ -2,6 +2,7 @@ package com.nhavronskyi.progressmebackend.ai.orchestrator.handler;
 
 import com.nhavronskyi.progressmebackend.ai.SystemPromptBuilder;
 import com.nhavronskyi.progressmebackend.ai.dto.AiContext;
+import com.nhavronskyi.progressmebackend.ai.orchestrator.StreamingTaskResult;
 import com.nhavronskyi.progressmebackend.ai.orchestrator.TaskHandler;
 import com.nhavronskyi.progressmebackend.ai.orchestrator.TaskResult;
 import com.nhavronskyi.progressmebackend.ai.orchestrator.TaskType;
@@ -16,6 +17,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -72,6 +74,33 @@ public class CoachingTaskHandler implements TaskHandler {
                 .map(Generation::getOutput)
                 .map(org.springframework.ai.chat.messages.AbstractMessage::getText)
                 .orElseThrow(() -> new IllegalStateException("Empty AI response"));
+    }
+
+    @Override
+    public StreamingTaskResult handleStream(UUID userId, String userMessage,
+                                             List<ChatMessage> history, AiContext context) {
+        String systemPrompt = promptBuilder.build(context);
+        List<Message> messages = buildMessages(systemPrompt, history);
+
+        Flux<String> tokenStream = streamWithFallback(messages);
+        return new StreamingTaskResult(tokenStream, text -> new TaskResult(text, null));
+    }
+
+    private Flux<String> streamWithFallback(List<Message> messages) {
+        return streamClient(reasoningClient, messages)
+                .onErrorResume(exception -> {
+                    log.warn("Reasoning model stream failed, falling back to execution model: {}",
+                            exception.getMessage());
+                    return streamClient(executionClient, messages);
+                });
+    }
+
+    private Flux<String> streamClient(ChatClient client, List<Message> messages) {
+        return client.prompt()
+                .messages(messages)
+                .stream()
+                .content()
+                .filter(text -> text != null && !text.isEmpty());
     }
 
     private List<Message> buildMessages(String systemPrompt, List<ChatMessage> history) {

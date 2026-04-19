@@ -16,11 +16,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import reactor.core.publisher.Flux;
+
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 @Slf4j
 @Service
@@ -173,6 +176,53 @@ public class OrchestratorService {
     private void markProposalStatus(ChatMessage proposalMessage, ChatMessage.ActionStatus status) {
         proposalMessage.setActionStatus(status.name());
         chatMessageRepository.save(proposalMessage);
+    }
+
+    public StreamingTaskResult processMessageStream(UUID userId, String userMessage,
+                                                      List<ChatMessage> history, AiContext context,
+                                                      Consumer<String> statusCallback) {
+        ChatMessage pendingProposal = findPendingProposal(history);
+
+        if (pendingProposal != null) {
+            return handlePendingProposalStream(userId, userMessage, history, context, pendingProposal, statusCallback);
+        }
+
+        statusCallback.accept("classifying");
+        TaskType taskType = intentClassifier.classify(userMessage, history);
+        log.info("Classified intent as {} for user={}", taskType, userId);
+
+        statusCallback.accept("thinking");
+        TaskHandler handler = handlerRegistry.getHandler(taskType);
+        return handler.handleStream(userId, userMessage, history, context);
+    }
+
+    private StreamingTaskResult handlePendingProposalStream(UUID userId, String userMessage,
+                                                             List<ChatMessage> history, AiContext context,
+                                                             ChatMessage proposalMessage,
+                                                             Consumer<String> statusCallback) {
+        statusCallback.accept("classifying");
+        IntentClassifier.ConfirmationResult confirmation =
+                intentClassifier.classifyConfirmation(userMessage);
+        log.info("Confirmation classified as {} for user={}", confirmation, userId);
+
+        return switch (confirmation) {
+            case CONFIRM -> {
+                TaskResult result = executeProposal(userId, proposalMessage);
+                yield new StreamingTaskResult(Flux.just(result.responseText()), text -> result);
+            }
+            case REJECT -> {
+                TaskResult result = rejectProposal(proposalMessage);
+                yield new StreamingTaskResult(Flux.just(result.responseText()), text -> result);
+            }
+            case EDIT -> {
+                markProposalStatus(proposalMessage, ChatMessage.ActionStatus.REJECTED);
+                statusCallback.accept("thinking");
+                TaskType taskType = TaskType.valueOf(proposalMessage.getActionType());
+                TaskHandler handler = handlerRegistry.getHandler(taskType);
+                yield handler.handleStreamWithPriorProposal(
+                        userId, userMessage, history, context, proposalMessage.getActionPayload());
+            }
+        };
     }
 
     private ChatMessage findPendingProposal(List<ChatMessage> history) {
