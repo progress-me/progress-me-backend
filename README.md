@@ -12,7 +12,7 @@ struggles), organize them under goals and life categories, and receive AI-genera
 | Database   | PostgreSQL                                          |
 | Migrations | Flyway                                              |
 | Auth       | JWT (jjwt) + Spring Security, stateless             |
-| AI         | Spring AI + Google Gemini (`gemini-2.5-flash-lite`) |
+| AI         | Spring AI + Google Gemini (`gemini-3.5-flash-lite`, `gemini-4-argon`) |
 | Build      | Gradle (Groovy DSL)                                 |
 | Container  | Docker (multi-stage, Eclipse Temurin 21)            |
 

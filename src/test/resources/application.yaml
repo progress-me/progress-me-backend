@@ -18,7 +18,7 @@ spring:
         api-key: test-key
         chat:
           options:
-            model: gemini-3-flash-preview
+            model: gemini-3.5-flash-lite
             temperature: 0.7
             max-output-tokens: 8192
 
@@ -30,6 +30,6 @@ app:
   ai:
     max-context-entries: 20
     models:
-      orchestrator: gemini-2.5-flash-lite
-      reasoning: gemini-2.5-pro
-      execution: gemini-2.5-flash-lite
+      orchestrator: gemini-3.5-flash-lite
+      reasoning: gemini-4-argon
+      execution: gemini-3.5-flash-lite
