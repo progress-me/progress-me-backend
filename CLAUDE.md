@@ -16,7 +16,7 @@ Local runtime dependencies (defaults in `src/main/resources/application.yaml`): 
 
 ## Stack
 
-Java 21, Spring Boot 4.0, Spring AI 2.0.0-M2 (Google GenAI / Gemini), JPA + Flyway (Postgres), Redis cache, stateless JWT auth, Lombok. Base package: `com.nhavronskyi.progressmebackend`, organized by feature (`goal/`, `log/`, `chat/`, `ai/`, ...), each with controller/service/repository/entity and a `dto/` subpackage (records).
+Java 21, Spring Boot 4.1, Spring AI 2.0 (Google GenAI / Gemini), JPA + Flyway (Postgres), Redis cache, stateless JWT auth, Lombok. Base package: `com.nhavronskyi.progressmebackend`, organized by feature (`goal/`, `log/`, `chat/`, `ai/`, ...), each with controller/service/repository/entity and a `dto/` subpackage (records).
 
 ## Architecture
 

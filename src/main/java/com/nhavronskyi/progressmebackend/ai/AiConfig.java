@@ -18,8 +18,7 @@ class AiConfig {
                 .defaultOptions(GoogleGenAiChatOptions.builder()
                         .model(properties.models().orchestrator())
                         .temperature(0.1)
-                        .maxOutputTokens(256)
-                        .build())
+                        .maxOutputTokens(256))
                 .build();
     }
 
@@ -30,8 +29,7 @@ class AiConfig {
                 .defaultOptions(GoogleGenAiChatOptions.builder()
                         .model(properties.models().reasoning())
                         .temperature(0.7)
-                        .maxOutputTokens(8192)
-                        .build())
+                        .maxOutputTokens(8192))
                 .build();
     }
 
@@ -42,8 +40,7 @@ class AiConfig {
                 .defaultOptions(GoogleGenAiChatOptions.builder()
                         .model(properties.models().execution())
                         .temperature(0.3)
-                        .maxOutputTokens(4096)
-                        .build())
+                        .maxOutputTokens(4096))
                 .build();
     }
 }
